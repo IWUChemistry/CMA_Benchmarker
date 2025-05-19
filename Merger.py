@@ -25,6 +25,7 @@ from concordantmodes.options import Options
 from concordantmodes.reap import Reap
 from concordantmodes.s_vectors import SVectors
 from concordantmodes.submit import Submit
+from concordantmodes.symmetry import Symmetry
 from concordantmodes.ted import TED
 from concordantmodes.transf_disp import TransfDisp
 from concordantmodes.vulcan_template import VulcanTemplate
@@ -64,23 +65,23 @@ class Merger(object):
         self.coord_type_init = coord_type_init
         
         self.Proj = Proj
-        
-        if len(sym_sort) > 1:
-            print(sym_sort)
-            flat_sym_sort = np.array([])
-            flat_sym_sort_inv = np.array([])
-            for i in range(len(sym_sort)):
-                flat_sym_sort = np.append(flat_sym_sort,sym_sort[i])
+        cma_level = "B"
+        #if len(sym_sort) > 1:
+        #    print(sym_sort)
+        #    flat_sym_sort = np.array([])
+        #    flat_sym_sort_inv = np.array([])
+        #    for i in range(len(sym_sort)):
+        #        flat_sym_sort = np.append(flat_sym_sort,sym_sort[i])
 
-            flat_sym_sort = flat_sym_sort.astype(int)
-            
-            print(len(flat_sym_sort))
-            print(flat_sym_sort)
-            for i in range(len(flat_sym_sort)):
-                print(i)
-                flat_sym_sort_inv = np.append(flat_sym_sort_inv,np.where(flat_sym_sort==i)[0][0])
-            # flat_sym_sort_inv = flat_sym_sort_inv[flat_sym_sort]
-            flat_sym_sort_inv = flat_sym_sort_inv.astype(int)
+        #    flat_sym_sort = flat_sym_sort.astype(int)
+        #    
+        #    print(len(flat_sym_sort))
+        #    print(flat_sym_sort)
+        #    for i in range(len(flat_sym_sort)):
+        #        print(i)
+        #        flat_sym_sort_inv = np.append(flat_sym_sort_inv,np.where(flat_sym_sort==i)[0][0])
+        #    # flat_sym_sort_inv = flat_sym_sort_inv[flat_sym_sort]
+        #    flat_sym_sort_inv = flat_sym_sort_inv.astype(int)
 
 
         
@@ -88,6 +89,26 @@ class Merger(object):
         rootdir = os.getcwd()
         zmat_obj = Zmat(self.options)
         zmat_obj.run()
+
+        #Do we want to use symmetry? Default is False
+        self.symm_obj = Symmetry(zmat_obj, self.options, self.Proj)
+    
+        if self.options.molsym_symmetry:
+            #create the symtext
+            self.symm_obj.run()
+            if coord_type_init == "internal":
+                self.symm_obj.molsym_salcs_ic()
+            elif coord_type_init == "cartesian":
+                self.symm_obj.molsym_salcs_cartesian()
+        else:
+            """
+            We won't run the symmetry code, but we'll create a dummy object to be passed as an argument.
+            #TODO: This is a hacky way to do this, but it's a quick fix for now. Maybe reincorporate symmetry as a s_vector obj?
+            """
+            self.symm_obj.dummy_obj()
+            self.symm_obj.symtext = None
+            if len(sym_sort) > 1:
+                self.symm_obj.create_flat_sym_sort(sym_sort)
 
         np.set_printoptions(edgeitems=60,linewidth=1000)
         
@@ -287,14 +308,15 @@ class Merger(object):
                     indices = np.array(indices).T
                     print("symmetric displacements:")
                     if len(sym_sort) > 1:
-                        sym_disps = []
-                        for i in sym_sort:
-                            for j in indices:
-                                if j[0] in i and j[1] in i:
-                                    sym_disps.append([j[0],j[1]])
-                                    # if j[1] in i:
-                                        # sym_disps.append([j[0],j[1]])
-                        indices = sym_disps
+                        indices = self.symm_obj.create_sym_sort_disps(sym_sort, indices)
+                        #sym_disps = []
+                        #for i in sym_sort:
+                        #    for j in indices:
+                        #        if j[0] in i and j[1] in i:
+                        #            sym_disps.append([j[0],j[1]])
+                        #            # if j[1] in i:
+                        #                # sym_disps.append([j[0],j[1]])
+                        #indices = sym_disps
                 
                 else:
                     indices = np.arange(len(eigs_init))
@@ -306,18 +328,17 @@ class Merger(object):
                     indices = np.triu_indices(ll)
                     indices = np.array(indices).T
                 init_disp = TransfDisp(
-                    s_vec,
+                    s_vec.B,
                     zmat_obj,
-                    self.options.disp,
                     eigs_init,
                     True,
-                    self.options.disp_tol,
                     TED_obj,
                     self.options,
                     indices,
+                    self.symm_obj,
                     deriv_level = self.options.deriv_level,
                     coord_type = self.coord_type_init,
-                    cart_proj = cart_proj
+                    #cart_proj = cart_proj
                 )
                 init_disp.run()
                 # raise RuntimeError
@@ -334,11 +355,12 @@ class Merger(object):
                         prog_name_init,
                         zmat_obj,
                         init_disp,
-                        self.options.cart_insert_init,
+                        cma_level,
                         init_disp.p_disp,
                         init_disp.m_disp,
                         self.options,
                         indices,
+                        self.symm_obj,
                         "templateInit.dat",
                         "DispsInit",
                         deriv_level = self.options.deriv_level
@@ -381,9 +403,8 @@ class Merger(object):
                     self.options,
                     eigs_init,
                     indices,
-                    self.options.energy_regex_init,
-                    self.options.gradient_regex,
-                    self.options.success_regex_init,
+                    self.symm_obj,
+                    cma_level,
                     deriv_level = self.options.deriv_level
                 )
                 reap_obj_init.energy_regex = energy_regex
@@ -427,7 +448,6 @@ class Merger(object):
                     ref_en_init,
                     self.options,
                     indices,
-                    reap_obj_init,
                     deriv_level=self.options.deriv_level,
                     coord_type_init=coord_type_init
                 )
@@ -435,6 +455,11 @@ class Merger(object):
                 print("Computed Force Constants:")
                 print(fc_init.FC)
                 if self.options.second_order:
+                    #if self.options.molsym_symmetry:
+                    #    print("Back-transform into unsymmetrized basis")
+                    #    bigS = self.symm_obj.CDsalcs.basis_transformation_matrix
+                    #    fc_init.FC = np.dot(bigS,np.dot(fc_init.FC, bigS.T))
+
                     p_array_grad = np.array([])
                     m_array_grad = np.array([])
                     for i in range(len(p_array_init)):
@@ -447,7 +472,6 @@ class Merger(object):
                         ref_en_init,
                         self.options,
                         indices,
-                        reap_obj_init,
                         deriv_level=1
                     )
                     grad_init.run()
@@ -463,8 +487,7 @@ class Merger(object):
                     "internal",
                     False,
                     TED_obj,
-                    self.options.units,
-                    self.options.second_order
+                    self.options,
                 )
                 f_conv_obj.N = len(fc_init.FC)
                 if self.coord_type_init == "internal":
@@ -737,54 +760,9 @@ class Merger(object):
             # print(g_sym)
         
         if len(sym_sort) > 1:
-            Fbuff1 = np.array([])
-            Fbuff2 = {}
-            Gbuff1 = np.array([])
-            Gbuff2 = {}
-            for i in range(len(sym_sort)):
-                Fbuff1 = F.copy()
-                Fbuff1 = Fbuff1[sym_sort[i]]
-                Fbuff1 = np.array([Fbuff1[:,sym_sort[i]]])
-                Fbuff2[str(i)] = Fbuff1.copy()
-                Gbuff1 = g_mat.G.copy()
-                Gbuff1 = Gbuff1[sym_sort[i]]
-                Gbuff1 = np.array([Gbuff1[:,sym_sort[i]]])
-                Gbuff2[str(i)] = Gbuff1.copy()
-            Fbuff3 = Fbuff2[str(0)][0].copy()
-            Gbuff3 = Gbuff2[str(0)][0].copy()
-            for i in range(len(sym_sort)-1):
-                Fbuff3 = np.block([
-                    [Fbuff3,                                        np.zeros((len(Fbuff3),len(Fbuff2[str(i+1)][0])))],
-                    [np.zeros((len(Fbuff2[str(i+1)][0]),len(Fbuff3))), Fbuff2[str(i+1)][0]]
-                    ])
-                Gbuff3 = np.block([
-                    [Gbuff3,                                        np.zeros((len(Gbuff3),len(Gbuff2[str(i+1)][0])))],
-                    [np.zeros((len(Gbuff2[str(i+1)][0]),len(Gbuff3))), Gbuff2[str(i+1)][0]]
-                    ])
-            F = Fbuff3[flat_sym_sort_inv]
-            F = F[:,flat_sym_sort_inv]
-            g_mat.G = Gbuff3[flat_sym_sort_inv]
-            g_mat.G = g_mat.G[:,flat_sym_sort_inv]
-
+            F, g_mat.G = self.symm_obj.GF_sym_sort(F, g_mat, sym_sort)
         
 
-        if len(sym_sort) > 1:
-            F_sym = F[flat_sym_sort].copy()
-            F_sym = F_sym[:,flat_sym_sort]
-            # F_sym2 = F_sym
-            print("Sym Force Constants:")
-            print(F_sym)
-            # print("SymDiff")
-            # print(F_sym2-F_sym1)
-            # F_sym = F_sym[flat_sym_sort.argsort()].copy()
-            # F_sym = F_sym[:,flat_sym_sort.argsort()]
-            
-            g_sym = g_mat.G[flat_sym_sort].copy()
-            g_sym = g_sym[:,flat_sym_sort]
-            g_sym[np.abs(g_sym) < 1e-9] = 0
-            print("Sym G-Matrix:")
-            print(sym_sort)
-            print(g_sym)
 
         print("Initial Force Constants:")
         print(F.shape)
@@ -800,7 +778,8 @@ class Merger(object):
         print("Initial G-Matrix:")
         g_mat.G[np.abs(g_mat.G) < 1e-9] = 0
         print(g_mat.G)
-
+        #if self.options.second_order:
+        #    self.options.molsym_symmetry = False
         print("Initial Frequencies:")
         init_GF = GFMethod(
             g_mat.G.copy(),
@@ -808,7 +787,8 @@ class Merger(object):
             zmat_obj,
             TED_obj,
             self.options,
-            # False
+            self.symm_obj.symtext,
+            False
         )
         init_GF.run()
        
@@ -821,7 +801,8 @@ class Merger(object):
         
         self.ref_init = init_GF.freq
         if len(sym_sort):
-            self.irreps_init,flat_sym_freqs = self.mode_symmetry_sort(init_GF.ted.TED,sym_sort,self.ref_init)
+            #self.irreps_init,flat_sym_freqs = self.mode_symmetry_sort(init_GF.ted.TED,sym_sort,self.ref_init)
+            self.irreps_init,flat_sym_freqs = self.symm_obj.mode_symmetry_sort(init_GF.ted.TED,sym_sort,self.ref_init)
             self.ref_init = np.array(flat_sym_freqs)
             
             flat_sym_modes_b = [
@@ -866,8 +847,8 @@ class Merger(object):
             zmat_obj,
             TED_obj,
             self.options,
-            # self.options.proj_tol,
-            # False
+            self.symm_obj.symtext,
+            False
         )
         TED_GF.run()
        
@@ -879,6 +860,8 @@ class Merger(object):
                 np.abs(eig_inv[i]) < np.max(np.abs(eig_inv[i])) * proj_tol
             ] = 0
         
+        cma_level = "A"
+
         # Now run the TZ force constant transformation
         zmat_obj2 = Zmat(self.options)
         zmat_obj2.run(zmat_name="zmat2")
@@ -994,8 +977,8 @@ class Merger(object):
             zmat_obj2,
             TED_obj,
             self.options,
-            # self.options.proj_tol,
-            # False
+            self.symm_obj.symtext,
+            False
         )
         full_GF.run()
         self.ted = full_GF.ted.TED      # TED matrix
@@ -1011,7 +994,8 @@ class Merger(object):
         print(ted_a)
         self.reference_freq = full_GF.freq 
         if len(sym_sort):
-            self.irreps_ref,flat_sym_freqs = self.mode_symmetry_sort(TED_obj.TED,sym_sort,self.reference_freq)
+            #self.irreps_ref,flat_sym_freqs = self.mode_symmetry_sort(TED_obj.TED,sym_sort,self.reference_freq)
+            self.irreps_ref,flat_sym_freqs = self.symm_obj.mode_symmetry_sort(TED_obj.TED,sym_sort,self.reference_freq)
             self.reference_freq = np.array(flat_sym_freqs)
             
             print(self.irreps_ref)
@@ -1142,8 +1126,8 @@ class Merger(object):
             zmat_obj2,
             TED_obj,
             self.options,
-            # self.options.proj_tol,
-            # False
+            self.symm_obj.symtext,
+            False
         )
         
         diag_GF.run()
@@ -1167,10 +1151,11 @@ class Merger(object):
         print("////////////////////////////////////////////")
         TED_obj.run(np.dot(init_GF.L, diag_GF.L), diag_GF.freq, rect_print=False)
         
+        print(self.Freq_CMA0)
         if len(sym_sort):
-            self.irreps_CMA0,flat_sym_freqs = self.mode_symmetry_sort(TED_obj.TED,sym_sort,self.Freq_CMA0)
-            self.Freq_CMA0 = np.array(flat_sym_freqs)
-
+            #self.irreps_CMA0,flat_sym_freqs = self.mode_symmetry_sort(TED_obj.TED,sym_sort,self.Freq_CMA0)
+            self.irreps_CMA0,flat_sym_freqs = self.symm_obj.mode_symmetry_sort(TED_obj.TED,sym_sort,self.Freq_CMA0)
+            self.Freq_CMA0 = np.array(flat_sym_freqs) 
         # Beginning of the condensed, new off-diag code.
         if self.options.off_diag:
             # od_inds = self.od_inds
@@ -1202,7 +1187,8 @@ class Merger(object):
                 TED_obj.run(np.dot(init_GF.L, cma1_GF.L), cma1_GF.freq, rect_print=False)
                 
                 if len(sym_sort):
-                    self.irreps_CMA1,flat_sym_freqs = self.mode_symmetry_sort(TED_obj.TED,sym_sort,cma1_Freq)
+                    #self.irreps_CMA1,flat_sym_freqs = self.mode_symmetry_sort(TED_obj.TED,sym_sort,cma1_Freq)
+                    self.irreps_CMA1,flat_sym_freqs = self.symm_obj.mode_symmetry_sort(TED_obj.TED,sym_sort,cma1_Freq)
                     cma1_Freq = np.array(flat_sym_freqs)
                 
                 # self.RMSD = np.append(self.RMSD,cma1_rmsd)
@@ -1229,19 +1215,7 @@ class Merger(object):
                         xi = F_inter * 0
                         od_inds = []
                         if len(sym_sort) > 1:
-                            self.total_off_diags_buff = 0
-                            for irrep in self.irreps_init:
-                                if len(irrep) > 1:
-                                    for i in range(len(irrep)):
-                                        for j in range(i):
-                                            if i != j:
-                                                a = irrep[i]
-                                                b = irrep[j]
-                                                buff = np.abs(F_inter[a,b])
-                                                xi[a,b] = buff / np.sqrt(np.abs(F_inter[a,a])*np.abs(F_inter[b,b]))
-                                                if xi[a,b] > xi_tol_i:
-                                                    od_inds.append([a,b])
-                                    self.total_off_diags_buff += (len(irrep)**2 - len(irrep))/2
+                            od_inds, self.total_off_diags_buff = self.symm_obj.cma2_sym_sort(sym_sort,od_inds,self.irreps_init, F_inter, xi, xi_tol_i)
                         else:
                             self.total_off_diags_buff = (len(xi)**2 - len(xi))/2
                             for i in range(len(xi)):
@@ -1294,7 +1268,8 @@ class Merger(object):
                     TED_obj.run(np.dot(init_GF.L, cma2_GF.L), cma2_GF.freq, rect_print=False)
                     
                     if len(sym_sort):
-                        self.irreps_CMA2,flat_sym_freqs = self.mode_symmetry_sort(TED_obj.TED,sym_sort,cma2_Freq)
+                        #self.irreps_CMA2,flat_sym_freqs = self.mode_symmetry_sort(TED_obj.TED,sym_sort,cma2_Freq)
+                        self.irreps_CMA2,flat_sym_freqs = self.symm_obj.mode_symmetry_sort(TED_obj.TED,sym_sort,cma2_Freq)
                         cma2_Freq = np.array(flat_sym_freqs)
                     
                     # self.RMSD = np.append(self.RMSD,cma2_rmsd)
@@ -1494,7 +1469,6 @@ class Merger(object):
                 upper_triang[two_d[0],two_d[1]] = 0
             return indexes
         
-    # This function returns a sorted list of frequencies, with any non-coupling frequencies being deleted.
     def mode_symmetry_sort(self,TED,sym_sort,freqs):
         ref_TED_init = TED
         sym_modes = []
@@ -1540,5 +1514,71 @@ class Merger(object):
             for x in xs
         ]
         flat_sym_freqs = np.array(flat_sym_freqs)
-
         return sym_modes, flat_sym_freqs
+        #OLD SYM SORT STUFF
+         
+        #if len(sym_sort) > 1:
+        #    F_sym = F[flat_sym_sort].copy()
+        #    F_sym = F_sym[:,flat_sym_sort]
+        #    # F_sym2 = F_sym
+        #    print("Sym Force Constants:")
+        #    print(F_sym)
+        #    # print("SymDiff")
+        #    # print(F_sym2-F_sym1)
+        #    # F_sym = F_sym[flat_sym_sort.argsort()].copy()
+        #    # F_sym = F_sym[:,flat_sym_sort.argsort()]
+        #    
+        #    g_sym = g_mat.G[flat_sym_sort].copy()
+        #    g_sym = g_sym[:,flat_sym_sort]
+        #    g_sym[np.abs(g_sym) < 1e-9] = 0
+        #    print("Sym G-Matrix:")
+        #    print(sym_sort)
+        #    print(g_sym)
+        
+        #if len(sym_sort) > 1:
+            #Fbuff1 = np.array([])
+            #Fbuff2 = {}
+            #Gbuff1 = np.array([])
+            #Gbuff2 = {}
+            #for i in range(len(sym_sort)):
+            #    Fbuff1 = F.copy()
+            #    Fbuff1 = Fbuff1[sym_sort[i]]
+            #    Fbuff1 = np.array([Fbuff1[:,sym_sort[i]]])
+            #    Fbuff2[str(i)] = Fbuff1.copy()
+            #    Gbuff1 = g_mat.G.copy()
+            #    Gbuff1 = Gbuff1[sym_sort[i]]
+            #    Gbuff1 = np.array([Gbuff1[:,sym_sort[i]]])
+            #    Gbuff2[str(i)] = Gbuff1.copy()
+            #Fbuff3 = Fbuff2[str(0)][0].copy()
+            #Gbuff3 = Gbuff2[str(0)][0].copy()
+            #for i in range(len(sym_sort)-1):
+            #    Fbuff3 = np.block([
+            #        [Fbuff3,                                        np.zeros((len(Fbuff3),len(Fbuff2[str(i+1)][0])))],
+            #        [np.zeros((len(Fbuff2[str(i+1)][0]),len(Fbuff3))), Fbuff2[str(i+1)][0]]
+            #        ])
+            #    Gbuff3 = np.block([
+            #        [Gbuff3,                                        np.zeros((len(Gbuff3),len(Gbuff2[str(i+1)][0])))],
+            #        [np.zeros((len(Gbuff2[str(i+1)][0]),len(Gbuff3))), Gbuff2[str(i+1)][0]]
+            #        ])
+            #F = Fbuff3[flat_sym_sort_inv]
+            #F = F[:,flat_sym_sort_inv]
+            #g_mat.G = Gbuff3[flat_sym_sort_inv]
+            #g_mat.G = g_mat.G[:,flat_sym_sort_inv]
+                        
+                        
+                        
+                        #if len(sym_sort) > 1:
+                            #self.total_off_diags_buff = 0
+                            #for irrep in self.irreps_init:
+                            #    if len(irrep) > 1:
+                            #        for i in range(len(irrep)):
+                            #            for j in range(i):
+                            #                if i != j:
+                            #                    a = irrep[i]
+                            #                    b = irrep[j]
+                            #                    buff = np.abs(F_inter[a,b])
+                            #                    xi[a,b] = buff / np.sqrt(np.abs(F_inter[a,a])*np.abs(F_inter[b,b]))
+                            #                    if xi[a,b] > xi_tol_i:
+                            #                        od_inds.append([a,b])
+                            #        self.total_off_diags_buff += (len(irrep)**2 - len(irrep))/2
+         # This function returns a sorted list of frequencies, with any non-coupling frequencies being deleted.
