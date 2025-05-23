@@ -25,32 +25,44 @@ np.set_printoptions(precision=4)
 
 # High and low levels of theory
 h_theory = ["CCSD_T_TZ"]
-l_theory = ["MP2_TZ"]
+#h_theory = ["B3LYP_6-31G_2df,p_"]
+#l_theory = ["MP2_TZ"]
+#l_theory = ["df_MP2_TZ"]
+l_theory = ["GFN"]
 
 combos = list(product(h_theory,l_theory))
 
 #cma1_energy_regexes = ["\(T\)\s*t?o?t?a?l? energy\s+(\-\d+\.\d+)"]
 cma1_energy_regexes = ["\s*!MP2\s*t?o?t?a?l? energy\s+(\-\d+\.\d+)"]
 cma1_gradient_regex = []
-#cma1_success_regexes = ["Molpro calculation terminated"]
-cma1_success_regexes = ["Variable memory released"]
+cma1_success_regexes = ["Molpro calculation terminated"]
+#cma1_success_regexes = ["Variable memory released"]
+cma1_success_regexes = ["normal termination of xtb", "beer"]
+cma1_energy_regexes = ["\s*total energy\s+(\-\d+\.\d+)"]
+#cma1_energy_regexes = ["Grab this energy\s+(\-\d+\.\d+)"]
+#cma1_success_regexes = ["beer"]
 
 
 # Coordinates types to use
 # Available: "Nattys", "Redundant", "ZMAT" (not yet tho)
 # coord_type = ["Nattys", "Redundant"]
-# coord_type = ["Redundant"]
-coord_type = ["Nattys"]
+coord_type = ["Redundant"]
+#coord_type = ["Nattys"]
 #coord_type = ["SALCs"]
 
 # Specify paths to grab data from
 # paths = ['/2_Open_Shell']
 
-# paths = ['/1*','/2*']
-#job_list = ["3.16"]
-# exclude_list = ["1.91","1.57","2.14"]
-exclude_list = []
+#paths = ['/1*','/2*']
+paths = ['/1_Closed_Shell','/2_Open_Shell']
+paths = ['/1_Closed_Shell']
+job_list = ["1.59"]
+#job_list = ["2.18"]
+#job_list = ["1.1"]
+exclude_list = ["1.79", "1.82", "1.85", "1.86", "1.100"]
+#exclude_list = []
 
+cluster = "sisyphus"
 
 # Various output control statements
 # n = 1                    # Number of CMA2 corrections (n = 0 -> CMA0)
@@ -59,12 +71,12 @@ xi_tol = [0.04]    # Xi value for cutoff in determining CMA2 off diags
 od_inds = [[16,17]]         # Contains a list of lists, where the sublists contain off-diagonal elements to be computed in CMA-1
 # cmaA = False             # Run CMA1 instead of CMA0
 cmaA = True             # Run CMA1 instead of CMA0
-csv = False               # Generate database .csv file
-# csv = True               # Generate database .csv file
+#csv = False               # Generate database .csv file
+csv = True               # Generate database .csv file
 SI = False                # Generate LaTeX SI file
-# SI = True               # Generate LaTeX SI file
+#SI = True               # Generate LaTeX SI file
 compute_all = False       # run calculations for all or a select few
-# compute_all = True       # run calculations for all or a select few
+#compute_all = True       # run calculations for all or a select few
 # off_diag_bands = False   # (CMA2/3 ONLY) If set to true, "n" off-diag bands selected, if false, "n" largest fc will be selected
                            # off_diag_bands is now an obsolete option
 off_diag = 0   # Set this option for CMA0
@@ -422,10 +434,12 @@ def execute():
                         #change to True if you need the displacements generated
                         execMerger.options.calc_init = True
                         #execMerger.options.calc_init = False
-
+                    combpath = os.getcwd() + "/" + combo[0]+"/Disps_" + combo[1] + "/DispsInit"
                     if os.path.exists(os.getcwd() + "/" + combo[0]+"/Disps_" + combo[1] + "/DispsInit"):
+                        print(f"The path exists!!! for combo {combpath}")
                         execMerger.options.calc_init = False
                         execMerger.options.gen_disps_init = False
+                    print(f"Execmerger calc_init {execMerger.options.calc_init}!!!")
                     execMerger.options.cart_insert_init = 9
                     if combo[1] == "B3LYP_6-31G_2df,p_":
                         execMerger.options.other_F_matrix = 'HF_6-31G_2df,p_'
@@ -444,9 +458,14 @@ def execute():
                     if combo[1] == "CCSD_T_DZ":
                         # execMerger.options.cart_insert_init = 24
                         execMerger.options.cart_insert_init = 9
+                    elif combo[1] == "GFN":
+                        execMerger.options.cart_insert_init = 1
+                        execMerger.options.program_init = "xtb"
                     elif combo[1] == "B3LYP_6-31G_2df,p_" or combo[1] == "HF_6-31G_2df,p_" or combo[1] == "df_MP2_TZ":
                         execMerger.options.cart_insert_init = 4
                         execMerger.options.program_init = "psi4@master"
+                    if cluster == "sisyphus":
+                        execMerger.options.cluster = "sisyphus"
                     execMerger.options.coords = coord
                     execMerger.options.n_cma2 = n
                     # execMerger.options.off_diag = off_diag_bands
@@ -491,7 +510,7 @@ def execute():
                             sym_sort = copy.copy(project_obj.sym_sort)
                         except:
                             pass
-                        mol.get_nattys(combo)
+                        #mol.get_nattys(combo)
                     elif coord == "SALCs":
                         if second_order:
                             print("The parameters")
@@ -530,9 +549,11 @@ def execute():
                                 shutil.copyfile(job + combo[0] + "/Disps_" + combo[1] + "/fc_cart.dat", job + "fc.dat")
                                 shutil.copyfile(job + combo[0] + "/Disps_" + combo[1] + "/fc_cart.grad", job + "fc.grad")
                             except:
+                                print("Missing files for second-order Redundants, not a deal-breaker")
+                                print(job + combo[0] + "/Disps_" + combo[1] + "/fc_cart.dat")
                                 print('Once again, the directory does not contain the sufficient files for the specified job')
-                                mol.direc_complete = False
-                                break 
+                                #mol.direc_complete = False
+                                #break 
                         try: 
                             shutil.copyfile(job + combo[0] + "/zmat_red", job + "zmat")
                             shutil.copyfile(job + combo[0] + "/zmat_red", job + "zmat2")
@@ -540,6 +561,9 @@ def execute():
                             #shutil.copyfile(job + combo[0] + "/zmat_cma1", job + "zmat")
                             #shutil.copyfile(job + combo[0] + "/zmat_cma1_Final", job + "zmat2")
                         except:
+                            print("Missing zmat stuff for second-order Redundants, this is a deal-breaker")
+                            print(job + combo[0] + "/zmat")
+                            print(job + combo[0] + "/fc.dat")      
                             print('Once again, the directory does not contain the sufficient files for the specified job')
                             mol.direc_complete = False
                             break 
@@ -603,8 +627,12 @@ def execute():
                         mol.freqs[f'Natty ({combo[1]})'] = custom_freq
                         # mol.freqs[f'Natty ({combo[1]})'] = execMerger.Freq_custom
                     if coord == "Redundant":
+                        d['Molecule'] = [f"{mol.name} ({mol.ID}) mode {i+1}" for i in freq_indices]
+                        z['Molecule'] = [f"{mol.name} ({mol.ID})"]
+                        m['Molecule'] = [f"{mol.name} ({mol.ID})"]
                         if 'Linear' not in job:
-                            red_freq = execMerger.Freq_redundant.copy()
+                            #red_freq = execMerger.Freq_redundant.copy()
+                            red_freq = execMerger.Freq_CMA0.copy()
 
                             d[f'Red ({combo[1]})'] = red_freq
                             # d[f'Red ({combo[1]})'] = execMerger.Freq_redundant
@@ -697,7 +725,7 @@ def execute():
                                 # d2[f'Ref - Red ({combo[1]})'] = freq_diff(execMerger.reference_freq, execMerger.Freq_custom)
                             cma2_freqs_red = execMerger.Freq_cma2 
                           
-                            d2[f'Natty CMA2 ({combo[1]})'] = cma2_freqs_red 
+                            d2[f'Redundant CMA2 ({combo[1]})'] = cma2_freqs_red 
                             d2[f'Ref - Red CMA2 ({combo[1]})'] = freq_diff(ref_freq, cma2_freqs_red)
                             d2[f'ABS Ref - Red CMA2 ({combo[1]})'] = np.abs(freq_diff(ref_freq, cma2_freqs_red))
                             # d2[f'Ref - Red CMA2 ({combo[1]})'] = freq_diff(execMerger.reference_freq, cma2_freqs_red)
@@ -733,7 +761,7 @@ def execute():
             
             if coord_type[0] == 'Nattys':
                 print("end:")
-                mol.run()
+                #mol.run()
             sys.path.remove(job)
             del mol
 
@@ -770,10 +798,10 @@ if csv:
     megaframe = pd.concat(frame)
     megaframez = pd.concat(framez)
     megaframem = pd.concat(framem)
-    # megaframe.to_csv('CoordDep.csv', index=False, float_format="%.2f")
+    megaframe.to_csv('CoordDep.csv', index=False, float_format="%.2f")
     # megaframez.to_csv('ZPVE.csv', index=False, float_format="%.2f")
-    # megaframem.to_csv('e_max.csv', index=False, float_format="%.2f")
-    # megaframez.to_csv('ZPVE.csv', index=False, float_format="%.8f")
+    megaframem.to_csv('e_max.csv', index=False, float_format="%.2f")
+    megaframez.to_csv('ZPVE.csv', index=False, float_format="%.8f")
     print("Final stats:")
     # print(megaframe)
     # print(np.array(megaframe.loc[:,"Ref - Nat (MP2_TZ)"]))
@@ -795,86 +823,107 @@ if csv:
         print(np.mean(np.array(megaframez.loc[:,f'Pure - Ref ({combo[1]})'])))
         print(f'stdev ZPVE ({combo[1]}):')
         print(np.std(np.array(megaframez.loc[:,f'Pure - Ref ({combo[1]})'])))
+        print(coord_type[0])        
+        if coord_type[0] == "Redundant":
+            print(f'MAD CMA0 ({combo[1]}):')
+    
+            print(np.mean(np.abs(np.array(megaframe.loc[:,f'Ref - Red ({combo[1]})']))))
+            print(f'mean CMA0 ({combo[1]}):')
+            print(np.mean(np.array(megaframe.loc[:,f'Ref - Red ({combo[1]})'])))
+            print(f'mean e_max CMA0 ({combo[1]}):')
+            print(np.mean(np.array(megaframem.loc[:,f'Ref - Red ({combo[1]})'])))
+            print(f'stdev CMA0 ({combo[1]}):')
+            print(np.std(np.array(megaframe.loc[:,f'Ref - Red ({combo[1]})'])))
+            print(f'MAX CMA0 ({combo[1]}):')
+            print(np.max(np.abs(np.array(megaframe.loc[:,f'Ref - Red ({combo[1]})']))))
+            # Need MAD, mean, stdev of ZPVE here:
+            print(f'MAD CMA0 ZPVE ({combo[1]}):')
+            print(np.mean(np.abs(np.array(megaframez.loc[:,f'Ref - Red ({combo[1]})']))))
+            print(f'mean CMA0 ZPVE ({combo[1]}):')
+            print(np.mean(np.array(megaframez.loc[:,f'Ref - Red ({combo[1]})'])))
+            print(f'stdev CMA0 ZPVE ({combo[1]}):')
+            print(np.std(np.array(megaframez.loc[:,f'Ref - Red ({combo[1]})'])))
 
+        if coord_type[0] == "Nattys":
 
+            print(f'MAD CMA0 ({combo[1]}):')
+    
+            print(np.mean(np.abs(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})']))))
+            print(f'mean CMA0 ({combo[1]}):')
+            print(np.mean(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})'])))
+            print(f'mean e_max CMA0 ({combo[1]}):')
+            print(np.mean(np.array(megaframem.loc[:,f'Ref - Nat ({combo[1]})'])))
+            print(f'stdev CMA0 ({combo[1]}):')
+            print(np.std(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})'])))
+            print(f'MAX CMA0 ({combo[1]}):')
+            print(np.max(np.abs(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})']))))
+            # Need MAD, mean, stdev of ZPVE here:
+            print(f'MAD CMA0 ZPVE ({combo[1]}):')
+            print(np.mean(np.abs(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})']))))
+            print(f'mean CMA0 ZPVE ({combo[1]}):')
+            print(np.mean(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})'])))
+            print(f'stdev CMA0 ZPVE ({combo[1]}):')
+            print(np.std(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})'])))
+            if n > 0:
+                Eta_tab = np.array([])
+                OD_tab = np.array([])
+                MAD_tab = np.array([])
+                RMSD_tab = np.array([])
+                e_max_tab = np.array([])
+                for i in range(len(xi_tol)):
+                    megaframe2 = pd.concat(frame2)
+                    megaframe2e = pd.concat(frame2e)
+                    megaframe2m = pd.concat(frame2m)
+                    CMA2dat = np.array(megaframe2.loc[:,f'Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'])
+                    megaframe2.to_csv('CMA2_Convergent.csv', index=False, float_format='%.2f')
+                    megaframe2e.to_csv('CMA2_e_max.csv', index=False, float_format='%.2f')
+                    print(f'Xi: {xi_tol[i]}')
+                    print('Total modes in set:')
+                    sum_num = np.sum(np.array(megaframe2e.loc[:,f'Natty CMA2 eta_num ({combo[1]}) xi ({xi_tol[i]})']))
+                    sum_denom = np.sum(np.array(megaframe2e.loc[:,f'Natty CMA2 eta_denom ({combo[1]}) xi ({xi_tol[i]})']))
+                    print(sum_denom)
+                    print(f'Eta ({combo[1]}):')
+                    eta = (sum_num/sum_denom)*100
+                    print(eta)
+                    Eta_tab = np.append(Eta_tab,eta)
+                    print('% Off diags ({combo[1]}) xi ({xi_tol[i]})')
+                    sum_off_diags = np.sum(np.array(megaframe2e.loc[:,f'Natty CMA2 tot_off_diags ({combo[1]}) xi ({xi_tol[i]})']))
+                    od = (sum_num/sum_off_diags)*100
+                    print(od)
+                    OD_tab = np.append(OD_tab,od)
 
-        print(f'MAD CMA0 ({combo[1]}):')
-        print(np.mean(np.abs(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})']))))
-        print(f'mean CMA0 ({combo[1]}):')
-        print(np.mean(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})'])))
-        print(f'mean e_max CMA0 ({combo[1]}):')
-        print(np.mean(np.array(megaframem.loc[:,f'Ref - Nat ({combo[1]})'])))
-        print(f'stdev CMA0 ({combo[1]}):')
-        print(np.std(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})'])))
-        print(f'MAX CMA0 ({combo[1]}):')
-        print(np.max(np.abs(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})']))))
-        # Need MAD, mean, stdev of ZPVE here:
-        print(f'MAD CMA0 ZPVE ({combo[1]}):')
-        print(np.mean(np.abs(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})']))))
-        print(f'mean CMA0 ZPVE ({combo[1]}):')
-        print(np.mean(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})'])))
-        print(f'stdev CMA0 ZPVE ({combo[1]}):')
-        print(np.std(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})'])))
-        if n > 0:
-            Eta_tab = np.array([])
-            OD_tab = np.array([])
-            MAD_tab = np.array([])
-            RMSD_tab = np.array([])
-            e_max_tab = np.array([])
-            for i in range(len(xi_tol)):
-                megaframe2 = pd.concat(frame2)
-                megaframe2e = pd.concat(frame2e)
-                megaframe2m = pd.concat(frame2m)
-                CMA2dat = np.array(megaframe2.loc[:,f'Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'])
-                # megaframe2.to_csv('CMA2_Convergent.csv', index=False, float_format='%.2f')
-                # megaframe2e.to_csv('CMA2_e_max.csv', index=False, float_format='%.2f')
-                print(f'Xi: {xi_tol[i]}')
-                print('Total modes in set:')
-                sum_num = np.sum(np.array(megaframe2e.loc[:,f'Natty CMA2 eta_num ({combo[1]}) xi ({xi_tol[i]})']))
-                sum_denom = np.sum(np.array(megaframe2e.loc[:,f'Natty CMA2 eta_denom ({combo[1]}) xi ({xi_tol[i]})']))
-                print(sum_denom)
-                print(f'Eta ({combo[1]}):')
-                eta = (sum_num/sum_denom)*100
-                print(eta)
-                Eta_tab = np.append(Eta_tab,eta)
-                print('% Off diags ({combo[1]}) xi ({xi_tol[i]})')
-                sum_off_diags = np.sum(np.array(megaframe2e.loc[:,f'Natty CMA2 tot_off_diags ({combo[1]}) xi ({xi_tol[i]})']))
-                od = (sum_num/sum_off_diags)*100
-                print(od)
-                OD_tab = np.append(OD_tab,od)
-
-                print(f'MAD CMA2 ({combo[1]}):')
-                mad = np.mean(np.abs(CMA2dat))
-                print(mad)
-                MAD_tab = np.append(MAD_tab,mad)
-                print(f'RMSD CMA2 ({combo[1]}):')
-                print(np.sqrt(np.sum(CMA2dat**2)/len(CMA2dat)))
-                RMSD_tab = np.append(RMSD_tab,np.sqrt(np.sum(CMA2dat**2)/len(CMA2dat)))
-                print(f'Mean e_max CMA2 ({combo[1]}):')
-                print(np.mean(np.array(megaframe2m.loc[:,f'Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'])))
-                e_max_tab = np.append(e_max_tab,np.mean(np.array(megaframe2m.loc[:,f'Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'])))
-                # print(f'mean CMA2 ({combo[1]}):')
-                # print(np.mean(CMA2dat))
-                # Need the lower case max value printout here
-                print(f'stdev CMA2 ({combo[1]}):')
-                print(np.std(CMA2dat))
-                print(f'MAX CMA2 ({combo[1]}):')
-                print(np.max(np.abs(CMA2dat)))
-            print("\n")
-            print("Figure data:")
-            print("\n")
-            print("xi values:")
-            print(xi_tol)
-            print("eta values:")
-            print(Eta_tab.tolist())
-            print("% off-diagonals:")
-            print(OD_tab.tolist())
-            print("MAD values:")
-            print(MAD_tab.tolist())
-            print("RMSD values:")
-            print(RMSD_tab.tolist())
-            print("e_max values:")
-            print(e_max_tab.tolist())
+                    print(f'MAD CMA2 ({combo[1]}):')
+                    mad = np.mean(np.abs(CMA2dat))
+                    print(mad)
+                    MAD_tab = np.append(MAD_tab,mad)
+                    print(f'RMSD CMA2 ({combo[1]}):')
+                    print(np.sqrt(np.sum(CMA2dat**2)/len(CMA2dat)))
+                    RMSD_tab = np.append(RMSD_tab,np.sqrt(np.sum(CMA2dat**2)/len(CMA2dat)))
+                    print(f'Mean e_max CMA2 ({combo[1]}):')
+                    print(np.mean(np.array(megaframe2m.loc[:,f'Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'])))
+                    e_max_tab = np.append(e_max_tab,np.mean(np.array(megaframe2m.loc[:,f'Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'])))
+                    # print(f'mean CMA2 ({combo[1]}):')
+                    # print(np.mean(CMA2dat))
+                    # Need the lower case max value printout here
+                    print(f'stdev CMA2 ({combo[1]}):')
+                    print(np.std(CMA2dat))
+                    print(f'MAX CMA2 ({combo[1]}):')
+                    print(np.max(np.abs(CMA2dat)))
+                print("\n")
+                print("Figure data:")
+                print("\n")
+                print("xi values:")
+                print(xi_tol)
+                print("eta values:")
+                print(Eta_tab.tolist())
+                print("% off-diagonals:")
+                print(OD_tab.tolist())
+                print("MAD values:")
+                print(MAD_tab.tolist())
+                print("RMSD values:")
+                print(RMSD_tab.tolist())
+                print("e_max values:")
+                print(e_max_tab.tolist())
 
 
 # Ends SI file 

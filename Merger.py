@@ -24,6 +24,7 @@ from concordantmodes.int2cart import Int2Cart
 from concordantmodes.options import Options
 from concordantmodes.reap import Reap
 from concordantmodes.s_vectors import SVectors
+from concordantmodes.sisyphus_template import SisyphusTemplate
 from concordantmodes.submit import Submit
 from concordantmodes.symmetry import Symmetry
 from concordantmodes.ted import TED
@@ -61,7 +62,9 @@ class Merger(object):
         self.cma1_path = cma1_path
     # function that returns diagonal fc matrix + n-largest off-diagonal elements
     def run(self, opts, Proj, energy_regex=None, success_regex=None, cma1_coord=None, sym_sort=None, xi_tol=[], coord_type_init="internal", od_inds=[]):
+        sym_sort = []
         
+        print(f"calc init? {self.options.calc_init}")
         self.coord_type_init = coord_type_init
         
         self.Proj = Proj
@@ -303,7 +306,8 @@ class Merger(object):
             else:
                 # First generate displacements in internal coordinates
                 eigs_init = np.eye(len(s_vec.proj.T))
-                if not self.options.deriv_level:
+                if self.options.deriv_level == 0:
+                    print("Finite-Differences of Energies")
                     indices = np.triu_indices(len(s_vec.proj.T))
                     indices = np.array(indices).T
                     print("symmetric displacements:")
@@ -318,8 +322,15 @@ class Merger(object):
                         #                # sym_disps.append([j[0],j[1]])
                         #indices = sym_disps
                 
-                else:
-                    indices = np.arange(len(eigs_init))
+                elif self.options.deriv_level == 1:
+                    print("Finite-Differences of Analytical Gradients")
+                    #indices = np.arange(len(eigs_init))
+                    indices = np.arange(eigs_init.shape[0])
+                    print(f"The indices {indices}")
+                elif self.options.deriv_level == 2:
+                    print("Analytic Hessian")
+                    #Hessian is analytic/semiemperical, thus not displacements needed
+                    indices = None
                 if self.options.second_order:
                     if len(cart_proj):
                         ll = len(cart_proj.T)
@@ -371,7 +382,7 @@ class Merger(object):
                     for i in os.listdir(os.getcwd()):
                         disp_list.append(i)
 
-                    if self.options.cluster != "sapelo":
+                    if self.options.cluster == "vulcan":
                         v_template = VulcanTemplate(
                             self.options, len(disp_list), prog_name_init, prog_init
                         )
@@ -382,6 +393,21 @@ class Merger(object):
                         # Submits an array, then checks if all jobs have finished every
                         # 10 seconds.
                         sub = Submit(disp_list,self.options)
+                        sub.run()
+                    elif self.options.cluster == "sisyphus":
+                        s_template = SisyphusTemplate(
+                            self.options, len(disp_list), prog_name_init, prog_init
+                        )
+                        out = s_template.run()
+                        with open("optstep.sh", "w") as file:
+                            file.write(out)
+                        for z in range(0, len(disp_list)):
+                            source = os.getcwd() + "/optstep.sh"
+                            os.chdir("./" + str(z + 1))
+                            destination = os.getcwd()
+                            shutil.copy2(source, destination)
+                            os.chdir("../")
+                        sub = Submit(disp_list, self.options)
                         sub.run()
                     else:
                         s_template = SapeloTemplate(
@@ -418,11 +444,12 @@ class Merger(object):
                     os.chdir("..")
 
                 # nate
-                if not self.options.deriv_level:
+                if self.options.deriv_level == 0:
                     p_array_init = reap_obj_init.p_en_array
                     m_array_init = reap_obj_init.m_en_array
                     ref_en_init = reap_obj_init.ref_en
-                else:
+                elif self.options.deriv_level == 1:
+                #else:
                     cart_p_array_init = reap_obj_init.p_grad_array
                     cart_m_array_init = reap_obj_init.m_grad_array
                     p_array_init = np.zeros(np.eye(len(eigs_init)).shape)
@@ -440,7 +467,8 @@ class Merger(object):
                         A_proj = np.dot(LA.pinv(grad_s_vec.B),TED_obj.proj)
                         m_array_init[i] = np.dot(cart_m_array_init[i].T,A_proj)
                     
-
+                elif self.options.deriv_level == 2:
+                    print("The xtb force constants and gradient file has already been saved")
                 fc_init = ForceConstant(
                     init_disp,
                     p_array_init,
@@ -791,8 +819,6 @@ class Merger(object):
             False
         )
         init_GF.run()
-       
-        
         print("TED for sym purposes: ")
         init_GF.ted.TED[np.abs(init_GF.ted.TED) < 1e-5] = 0
         print(init_GF.ted.TED)
@@ -804,7 +830,6 @@ class Merger(object):
             #self.irreps_init,flat_sym_freqs = self.mode_symmetry_sort(init_GF.ted.TED,sym_sort,self.ref_init)
             self.irreps_init,flat_sym_freqs = self.symm_obj.mode_symmetry_sort(init_GF.ted.TED,sym_sort,self.ref_init)
             self.ref_init = np.array(flat_sym_freqs)
-            
             flat_sym_modes_b = [
                 x
                 for xs in self.irreps_init
