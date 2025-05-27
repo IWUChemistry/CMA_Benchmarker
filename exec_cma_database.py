@@ -28,8 +28,7 @@ h_theory = ["CCSD_T_TZ"]
 #h_theory = ["B3LYP_6-31G_2df,p_"]
 #l_theory = ["MP2_TZ"]
 #l_theory = ["df_MP2_TZ"]
-#l_theory = ["GFN"]
-l_theory = ["GFN_SCC"]
+l_theory = ["gfnff", "gfn0", "gfn1", "gfn2"]
 
 combos = list(product(h_theory,l_theory))
 
@@ -59,7 +58,7 @@ coord_type = ["Nattys"]
 #paths = ['/1_Closed_Shell','/2_Open_Shell']
 paths = ['/1_Closed_Shell']
 job_list = ["1.59"]
-job_list = ["1.1"]
+#job_list = ["1.1"]
 #job_list = ["2.18"]
 #job_list = ["1.1"]
 exclude_list = ["1.79", "1.82", "1.85", "1.86", "1.100"]
@@ -68,8 +67,8 @@ exclude_list = ["1.79", "1.82", "1.85", "1.86", "1.100"]
 cluster = "sisyphus"
 
 # Various output control statements
-n = 1                    # Number of CMA2 corrections (n = 0 -> CMA0)
-#n = 0                    # Number of CMA2 corrections (n = 0 -> CMA0)
+#n = 1                    # Number of CMA2 corrections (n = 0 -> CMA0)
+n = 0                    # Number of CMA2 corrections (n = 0 -> CMA0)
 xi_tol = [0.05,0.01,0.005,0.001]    # Xi value for cutoff in determining CMA2 off diags
 od_inds = [[16,17]]         # Contains a list of lists, where the sublists contain off-diagonal elements to be computed in CMA-1
 # cmaA = False             # Run CMA1 instead of CMA0
@@ -82,9 +81,9 @@ SI = False                # Generate LaTeX SI file
 compute_all = True       # run calculations for all or a select few
 # off_diag_bands = False   # (CMA2/3 ONLY) If set to true, "n" off-diag bands selected, if false, "n" largest fc will be selected
                            # off_diag_bands is now an obsolete option
-#off_diag = 0   # Set this option for CMA0
+off_diag = 0   # Set this option for CMA0
 # off_diag = 1   # Set this option for CMA1. Additional off-diagonal elements will need to be specified using ___.
-off_diag = 2   # Set this option for CMA2. Off-diags will be auto generated, but an aux hessian will need be specified using ___.
+#off_diag = 2   # Set this option for CMA2. Off-diags will be auto generated, but an aux hessian will need be specified using ___.
 #off_diag = 3   # Set this option for CMA2. Off-diags will be auto generated, but an aux hessian will need be specified using ___.
 deriv_level = 0         # (CMA1) if 0, compute initial hessian by singlepoints. If 1, compute initial hessian with findif of gradients
 #second_order = True    # If True, read in cartesian gradient and force constant info to be converted to internal coordinates.
@@ -466,12 +465,25 @@ def execute():
                     if combo[1] == "CCSD_T_DZ":
                         # execMerger.options.cart_insert_init = 24
                         execMerger.options.cart_insert_init = 9
-                    elif combo[1] == "GFN":
+                    elif combo[1] == "gfnff":
                         execMerger.options.cart_insert_init = 1
                         execMerger.options.program_init = "xtb"
-                    elif combo[1] == "GFN_SCC":
+                        execMerger.options.xtb_variant = "xtb --gfnff"
+                    elif combo[1] == "gfn0":
                         execMerger.options.cart_insert_init = 1
-                        execMerger.options.program_init = "xtb_gfn1"
+                        execMerger.options.program_init = "xtb"
+                        execMerger.options.xtb_variant = "xtb --gfn 0"
+                    elif combo[1] == "gfn1":
+                        execMerger.options.cart_insert_init = 1
+                        execMerger.options.program_init = "xtb"
+                        execMerger.options.xtb_variant = "xtb --gfn 1"
+                    elif combo[1] == "gfn2":
+                        execMerger.options.cart_insert_init = 1
+                        execMerger.options.program_init = "xtb"
+                        execMerger.options.xtb_variant = "xtb --gfn 2"
+                    #elif combo[1] == "GFN_SCC":
+                    #    execMerger.options.cart_insert_init = 1
+                    #    execMerger.options.program_init = "xtb_gfn1"
                     elif combo[1] == "B3LYP_6-31G_2df,p_" or combo[1] == "HF_6-31G_2df,p_" or combo[1] == "df_MP2_TZ":
                         execMerger.options.cart_insert_init = 4
                         execMerger.options.program_init = "psi4@master"
