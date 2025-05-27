@@ -398,6 +398,7 @@ class Merger(object):
                         s_template = SisyphusTemplate(
                             self.options, len(disp_list), prog_name_init, prog_init
                         )
+                        print(f"prog_name {prog_name_init} {prog_init}")
                         out = s_template.run()
                         with open("optstep.sh", "w") as file:
                             file.write(out)
@@ -824,7 +825,10 @@ class Merger(object):
         print(init_GF.ted.TED)
         ted_b = init_GF.ted.TED
         # raise RuntimeError
-        
+       
+        ll_modes = init_GF.L_p
+        ll_freqs = init_GF.freq
+
         self.ref_init = init_GF.freq
         if len(sym_sort):
             #self.irreps_init,flat_sym_freqs = self.mode_symmetry_sort(init_GF.ted.TED,sym_sort,self.ref_init)
@@ -1119,16 +1123,16 @@ class Merger(object):
             L_A = full_GF.L
          
         
-        def n_largest(n, FC):
-            indexes = []
-            upper_triang = abs(np.triu(FC,n))
-            for i in range(0,n):
-                fc_cma2 = np.where(upper_triang == upper_triang.max())
-                index = [fc_cma2[0][0], fc_cma2[1][0]]
-                indexes.append(index)
-                upper_triang[index[0],index[1]] = 0
-            print(indexes)
-            return indexes
+        #def n_largest(n, FC):
+        #    indexes = []
+        #    upper_triang = abs(np.triu(FC,n))
+        #    for i in range(0,n):
+        #        fc_cma2 = np.where(upper_triang == upper_triang.max())
+        #        index = [fc_cma2[0][0], fc_cma2[1][0]]
+        #        indexes.append(index)
+        #        upper_triang[index[0],index[1]] = 0
+        #    print(indexes)
+        #    return indexes
         
         np.set_printoptions(edgeitems=60,linewidth=10000)
         print("Full Force constant matrix in lower level normal mode basis:")
@@ -1218,7 +1222,67 @@ class Merger(object):
                 
                 # self.RMSD = np.append(self.RMSD,cma1_rmsd)
                 self.Freq_cma1 = cma1_Freq
+            #elif self.options.off_diag == 3:
+            #    def n_largest(n, FC):
+            #        indexes = []
+            #        upper_triang = abs(np.triu(FC,1))
+            #        length = len(upper_triang)
+            #        for i in range(0,n):
+            #            index = np.argmax(upper_triang)
+            #            if index > length:
+            #                two_d = [index // length, index % length]
+            #            else:
+            #                two_d = [0,index]
+            #            indexes.append(two_d)
+            #            
+            #            upper_triang[two_d[0],two_d[1]] = 0
+            #        return indexes
+            #    print("Adding on these off-diagonals:")
+            #    ll_modes_abs = abs(ll_modes)
+            #    overlap = np.dot(ll_modes_abs.T, ll_modes_abs)
+            #    diagnostic = np.zeros((len(ll_freqs),len(ll_freqs)))
+            #    for i, x in enumerate(ll_freqs):
+            #        for j, y in enumerate(ll_freqs):
+            #            if i !=j:
+            #                diagnostic[i,j] = overlap[i,j]/(abs(x-y))
+            #    n = len(ll_freqs)
+            #    cma3 = n_largest(n, diagnostic)
+            #    print(f"The {n} largest indices {cma3}")
+            #    for od_ind in cma3:
+            #        element = F[od_ind[0], od_ind[1]] 
+            #        temp[od_ind[0], od_ind[1]] = element
+            #        temp[od_ind[1], od_ind[0]] = element
+            #    print('Time for some off-diags')
+            #    cma3_GF = GFMethod(
+            #        G,
+            #        temp,
+            #        zmat_obj2,
+            #        TED_obj,
+            #        self.options,
+            #        # self.options.proj_tol,
+            #        # False
+            #    )
+            #    cma3_GF.run()
+            #    cma3_Freq = cma3_GF.freq.copy()
 
+            #    
+            #    print("////////////////////////////////////////////")
+            #    print("//{:^40s}//".format(" CMA-3 TED"))
+            #    print("////////////////////////////////////////////")
+            #    TED_obj.run(np.dot(init_GF.L, cma3_GF.L), cma3_GF.freq, rect_print=False)
+            #    
+            #    if len(sym_sort):
+            #        #self.irreps_CMA1,flat_sym_freqs = self.mode_symmetry_sort(TED_obj.TED,sym_sort,cma1_Freq)
+            #        self.irreps_CMA3,flat_sym_freqs = self.symm_obj.mode_symmetry_sort(TED_obj.TED,sym_sort,cma3_Freq)
+            #        cma3_Freq = np.array(flat_sym_freqs)
+            #    
+            #    # self.RMSD = np.append(self.RMSD,cma1_rmsd)
+            #    self.Freq_cma3 = cma3_Freq
+            #    print("CMA0 Errors")
+            #    print(self.reference_freq - self.Freq_CMA0)
+            #    print("CMA3 Errors")
+            #    print(self.reference_freq - self.Freq_cma3)
+            
             elif self.options.off_diag == 2:
                 self.Freq_cma2 = np.array([])
                 self.eta_num = np.array([])
@@ -1226,8 +1290,6 @@ class Merger(object):
                 self.total_off_diags = np.array([])
                 
                 for xi_tol_i in xi_tol:
-                    print(xi_tol_i)
-                    print('Time for some off-diags')
                     if len(self.options.other_F_matrix) and os.path.exists(os.getcwd() + "/inter_fc.dat"):
                         f_read_obj_inter = FcRead("inter_fc.dat")
                         f_read_obj_inter.run()
@@ -1285,7 +1347,7 @@ class Merger(object):
                     )
                     cma2_GF.run()
                     cma2_Freq = cma2_GF.freq.copy()
-
+                    print(f"The CMA2_freq {cma2_Freq} using {len(od_inds)} off-diagonal elements")
                     
                     print("////////////////////////////////////////////")
                     print("//{:^40s}//".format(" CMA-2 TED"))
