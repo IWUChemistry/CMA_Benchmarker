@@ -59,7 +59,6 @@ coord_type = ["Nattys"]
 #paths = ['/1_Closed_Shell','/2_Open_Shell']
 paths = ['/1_Closed_Shell']
 job_list = ["1.59"]
-#job_list = ["1.1"]
 #job_list = ["2.18"]
 exclude_list = ["1.79", "1.82", "1.85", "1.86", "1.100"]
 #exclude_list = []
@@ -69,7 +68,7 @@ cluster = "sisyphus"
 # Various output control statements
 #n = 1                    # Number of CMA2 corrections (n = 0 -> CMA0)
 n = 0                    # Number of CMA2 corrections (n = 0 -> CMA0)
-xi_tol = [0.05,0.01,0.005,0.001]    # Xi value for cutoff in determining CMA2 off diags
+xi_tol = [0.01]    # Xi value for cutoff in determining CMA2 off diags
 od_inds = [[16,17]]         # Contains a list of lists, where the sublists contain off-diagonal elements to be computed in CMA-1
 # cmaA = False             # Run CMA1 instead of CMA0
 cmaA = True             # Run CMA1 instead of CMA0
