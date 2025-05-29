@@ -449,7 +449,11 @@ class Merger(object):
                     p_array_init = reap_obj_init.p_en_array
                     m_array_init = reap_obj_init.m_en_array
                     ref_en_init = reap_obj_init.ref_en
+                    analytic_F = None
+                    analytic_Grad = None
                 elif self.options.deriv_level == 1:
+                    analytic_F = None
+                    analytic_Grad = None
                 #else:
                     cart_p_array_init = reap_obj_init.p_grad_array
                     cart_m_array_init = reap_obj_init.m_grad_array
@@ -467,9 +471,17 @@ class Merger(object):
                         grad_s_vec.run(init_disp.m_disp[i],False)
                         A_proj = np.dot(LA.pinv(grad_s_vec.B),TED_obj.proj)
                         m_array_init[i] = np.dot(cart_m_array_init[i].T,A_proj)
+                        analytic_F = None
+                        analytic_Grad = None
                     
                 elif self.options.deriv_level == 2:
                     print("The xtb force constants and gradient file has already been saved")
+                    #palceholders, need to pass in analytical Hessian and gradient as well...
+                    p_array_init = np.array([])
+                    m_array_init = np.array([])
+                    ref_en_init = 0
+                    analytic_F = reap_obj_init.F
+                    analytic_Grad = reap_obj_init.g
                 fc_init = ForceConstant(
                     init_disp,
                     p_array_init,
@@ -477,6 +489,8 @@ class Merger(object):
                     ref_en_init,
                     self.options,
                     indices,
+                    analytic_F,
+                    analytic_Grad,
                     deriv_level=self.options.deriv_level,
                     coord_type_init=coord_type_init
                 )
@@ -504,6 +518,8 @@ class Merger(object):
                         deriv_level=1
                     )
                     grad_init.run()
+                    if self.options.deriv_level == 2:
+                        grad_init.FC = analytic_Grad 
                     print("Computed Gradient:")
                     print(grad_init.FC)
                     if len(cart_proj):

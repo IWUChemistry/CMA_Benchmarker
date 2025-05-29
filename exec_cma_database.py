@@ -28,7 +28,8 @@ h_theory = ["CCSD_T_TZ"]
 #h_theory = ["B3LYP_6-31G_2df,p_"]
 #l_theory = ["MP2_TZ"]
 #l_theory = ["df_MP2_TZ"]
-l_theory = ["gfnff", "gfn0", "gfn1", "gfn2"]
+#l_theory = ["gfnff", "gfn0", "gfn1", "gfn2"]
+l_theory = ["gfnff"]
 
 combos = list(product(h_theory,l_theory))
 
@@ -60,7 +61,6 @@ paths = ['/1_Closed_Shell']
 job_list = ["1.59"]
 #job_list = ["1.1"]
 #job_list = ["2.18"]
-#job_list = ["1.1"]
 exclude_list = ["1.79", "1.82", "1.85", "1.86", "1.100"]
 #exclude_list = []
 
@@ -77,19 +77,19 @@ cmaA = True             # Run CMA1 instead of CMA0
 csv = True               # Generate database .csv file
 SI = False                # Generate LaTeX SI file
 #SI = True               # Generate LaTeX SI file
-#compute_all = False       # run calculations for all or a select few
-compute_all = True       # run calculations for all or a select few
+compute_all = False       # run calculations for all or a select few
+#compute_all = True       # run calculations for all or a select few
 # off_diag_bands = False   # (CMA2/3 ONLY) If set to true, "n" off-diag bands selected, if false, "n" largest fc will be selected
                            # off_diag_bands is now an obsolete option
 off_diag = 0   # Set this option for CMA0
 # off_diag = 1   # Set this option for CMA1. Additional off-diagonal elements will need to be specified using ___.
 #off_diag = 2   # Set this option for CMA2. Off-diags will be auto generated, but an aux hessian will need be specified using ___.
 #off_diag = 3   # Set this option for CMA2. Off-diags will be auto generated, but an aux hessian will need be specified using ___.
-deriv_level = 0         # (CMA1) if 0, compute initial hessian by singlepoints. If 1, compute initial hessian with findif of gradients
-#second_order = True    # If True, read in cartesian gradient and force constant info to be converted to internal coordinates.
-second_order = False    # If False, generate displacements to manually compute the CMA-0A internal coord force constants.
-#coord_type_init = "cartesian" # Toggle this for type of coordinate used in inital force constant computations
-coord_type_init = "internal" # Toggle this for type of coordinate used in inital force constant computations
+deriv_level = 2         # (CMA1) if 0, compute initial hessian by singlepoints. If 1, compute initial hessian with findif of gradients
+second_order = True    # If True, read in cartesian gradient and force constant info to be converted to internal coordinates.
+#second_order = False    # If False, generate displacements to manually compute the CMA-0A internal coord force constants.
+coord_type_init = "cartesian" # Toggle this for type of coordinate used in inital force constant computations
+#coord_type_init = "internal" # Toggle this for type of coordinate used in inital force constant computations
 
 #molsym_symmetry = True
 molsym_symmetry = False
@@ -484,6 +484,10 @@ def execute():
                     #elif combo[1] == "GFN_SCC":
                     #    execMerger.options.cart_insert_init = 1
                     #    execMerger.options.program_init = "xtb_gfn1"
+                    if deriv_level == 1:
+                        execMerger.options.xtb_addtl_opts = "--grad"
+                    elif deriv_level == 2:
+                        execMerger.options.xtb_addtl_opts = "--hess --grad"
                     elif combo[1] == "B3LYP_6-31G_2df,p_" or combo[1] == "HF_6-31G_2df,p_" or combo[1] == "df_MP2_TZ":
                         execMerger.options.cart_insert_init = 4
                         execMerger.options.program_init = "psi4@master"
