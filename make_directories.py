@@ -7,14 +7,17 @@ import re
 import shutil
 import subprocess
 
+#paths = ['/1*','/2*']
 paths = ['/1*','/2*']
 #levelA = "CCSD_T_TZ"
-levelA = "B3LYP_6-31G_2df,p_"
+levelA = "M062X_TZVP"
+#levelA = "B3LYP_6-31G_2df,p_"
 
-levelB = "GFN"
+#levelB = "gfnff"
+levelB = "gfn1"
 
-make_all = True #False if testing code
-#job_list = ["1.59"]
+make_all = False #if testing code
+job_list = ["1.59"]
 
 hq = os.getcwd()
 jobb_list = []
@@ -38,6 +41,7 @@ def delete_Disps_dir(jobb_list):
         else:
             print("the path doesn't exist... can't delete it")
         print(f"Does the directory exist now? {os.path.exists(dir_to_delete)}")
+
 def make_Disps_dir(jobb_list):
     for j, job in enumerate(jobb_list):
         print(f"the job {job}")
@@ -46,11 +50,21 @@ def make_Disps_dir(jobb_list):
         print(f"the dir to make {dir_to_make}")
         os.mkdir(dir_to_make)
         print(f"Does the directory exist now? {os.path.exists(dir_to_make)}")
-        #os.chdir(dir_to_make)
-        #print(os.getcwd())
 
+def make_levelA_dir(jobb_list):
+    for j, job in enumerate(jobb_list):
+        print(f"the job {job}")
+        levelB_direc = "/Disps_" + levelB
+        dir_to_make = job + levelA #+  levelB_direc
+        print(f"the levelA dir to make {dir_to_make}")
+        os.mkdir(dir_to_make)
+        print(f"Does the directory exist now? {os.path.exists(dir_to_make)}")
 
-
+def copy_zmat(jobb_list):
+    for j, job in enumerate(jobb_list):
+        zmat_direc = job + "CCSD_T_TZ/zmat"
+        zmat_destination = job + levelA + "/zmat"
+        shutil.copyfile(zmat_direc, zmat_destination)
 
 if make_all:
     for path in paths:
@@ -59,13 +73,19 @@ if make_all:
         ind = np.argsort(np.array([int(re.search(r"/\d_.*/(\d*)_.*", name).group(1)) for name in tmp_list]))
         tmp_list = [tmp_list[i] for i in ind]
         jobb_list += tmp_list
-    make_Disps_dir(jobb_list)
-    insert_templates(jobb_list)
+    print("printing jobb_list")
+    print(jobb_list)
+    #copy_zmat(jobb_list)
+    #make_levelA_dir(jobb_list)
+    #make_Disps_dir(jobb_list)
+    #insert_templates(jobb_list)
     #delete_Disps_dir(jobb_list)
 else:
     for job in job_list:
         id1, id2 = job.split(".")
         jobb_list += glob.glob(hq + f"/{id1}_*" + f"/{id2}_*/")
+    #make_levelA_dir(jobb_list)
+    #copy_zmat(jobb_list)
     make_Disps_dir(jobb_list)
     insert_templates(jobb_list)
     #delete_Disps_dir(jobb_list)
