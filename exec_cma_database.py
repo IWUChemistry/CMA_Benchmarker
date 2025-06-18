@@ -24,12 +24,12 @@ np.set_printoptions(precision=4)
 # =======================
 
 # High and low levels of theory
-h_theory = ["CCSD_T_TZ"]
+#h_theory = ["CCSD_T_TZ"]
+h_theory = ["B3LYP_6-311G**"]
 #h_theory = ["B3LYP_6-31G_2df,p_"]
 #l_theory = ["MP2_TZ"]
 #l_theory = ["df_MP2_TZ"]
-#l_theory = ["gfnff", "gfn0", "gfn1", "gfn2"]
-l_theory = ["gfnff"]
+l_theory = ["gfn1"]
 
 combos = list(product(h_theory,l_theory))
 
@@ -44,12 +44,12 @@ cma1_energy_regexes = ["\s*total energy\s+(\-\d+\.\d+)"]
 #cma1_energy_regexes = ["Grab this energy\s+(\-\d+\.\d+)"]
 #cma1_success_regexes = ["beer"]
 
-
 # Coordinates types to use
 # Available: "Nattys", "Redundant", "ZMAT" (not yet tho)
 # coord_type = ["Nattys", "Redundant"]
-#coord_type = ["Redundant"]
-coord_type = ["Nattys"]
+coord_type = ["Redundant"]
+vdw = True #covalentradii
+#coord_type = ["Nattys"]
 #coord_type = ["SALCs"]
 
 # Specify paths to grab data from
@@ -57,19 +57,22 @@ coord_type = ["Nattys"]
 
 #paths = ['/1*','/2*']
 #paths = ['/1_Closed_Shell','/2_Open_Shell']
-paths = ['/1_Closed_Shell']
-job_list = ["1.59"]
-#job_list = ["2.18"]
+#paths = ['/1_Closed_Shell']
+paths = ['/10_Alanine']
+job_list = ["10.1"]
+#job_list = ["1.369"]
 exclude_list = ["1.79", "1.82", "1.85", "1.86", "1.100"]
-#exclude_list = []
 
 cluster = "sisyphus"
 
 # Various output control statements
-#n = 1                    # Number of CMA2 corrections (n = 0 -> CMA0)
-n = 0                    # Number of CMA2 corrections (n = 0 -> CMA0)
+n = 1                    # Number of CMA2 corrections (n = 0 -> CMA0)
+#n = 0                    # Number of CMA2 corrections (n = 0 -> CMA0)
+#xi_tol = [0.05,0.025, 0.02, 0.01, 0.005, 0.0025, 0.001]    # Xi value for cutoff in determining CMA2 off diags
 xi_tol = [0.01]    # Xi value for cutoff in determining CMA2 off diags
-od_inds = [[16,17]]         # Contains a list of lists, where the sublists contain off-diagonal elements to be computed in CMA-1
+#od_inds = [[10,1],[10,2],[10,3],[10,4],[10,5],[10,6],[10,7],[10,8],[10,9],[10,11]]         # Contains a list of lists, where the sublists contain off-diagonal elements to be computed in CMA-1
+#od_inds = [[0,3],[1,4],[9,10]]         # Contains a list of lists, where the sublists contain off-diagonal elements to be computed in CMA-1
+od_inds = [[9,10]]         # Contains a list of lists, where the sublists contain off-diagonal elements to be computed in CMA-1
 # cmaA = False             # Run CMA1 instead of CMA0
 cmaA = True             # Run CMA1 instead of CMA0
 #csv = False               # Generate database .csv file
@@ -80,9 +83,9 @@ compute_all = False       # run calculations for all or a select few
 #compute_all = True       # run calculations for all or a select few
 # off_diag_bands = False   # (CMA2/3 ONLY) If set to true, "n" off-diag bands selected, if false, "n" largest fc will be selected
                            # off_diag_bands is now an obsolete option
-off_diag = 0   # Set this option for CMA0
-# off_diag = 1   # Set this option for CMA1. Additional off-diagonal elements will need to be specified using ___.
-#off_diag = 2   # Set this option for CMA2. Off-diags will be auto generated, but an aux hessian will need be specified using ___.
+#off_diag = 0   # Set this option for CMA0
+#off_diag = 1   # Set this option for CMA1. Additional off-diagonal elements will need to be specified using ___.
+off_diag = 2    # Set this option for CMA2. Off-diags will be auto generated, but an aux hessian will need be specified using ___.
 #off_diag = 3   # Set this option for CMA2. Off-diags will be auto generated, but an aux hessian will need be specified using ___.
 deriv_level = 2         # (CMA1) if 0, compute initial hessian by singlepoints. If 1, compute initial hessian with findif of gradients
 second_order = True    # If True, read in cartesian gradient and force constant info to be converted to internal coordinates.
@@ -312,6 +315,8 @@ def execute():
                         mol.get_nattys(combo)
                     
                     else:
+                        print("Are we here?")
+                        print(os.getcwd())
                         shutil.copyfile(job + combo[1] + "/zmat_red", job + "zmat")
                         shutil.copyfile(job + combo[1] + "/fc.dat", job + "fc.dat")
                         shutil.copyfile(job + combo[0] + "/fc.dat", job + "fc2.dat")       
@@ -451,16 +456,32 @@ def execute():
                         execMerger.options.other_F_matrix = 'HF_TZ'
                     elif combo[1] == "MP2_haTZ":
                         execMerger.options.other_F_matrix = 'HF_haTZ'
-                    #elif combo[1] == "GFN":
-                    #    execMerger.options.other_F_matrix = 'GFN_SCC'
+                    elif combo[1] == "gfn2":
+                        execMerger.options.other_F_matrix = 'gfn1'
+                    elif combo[1] == "gfn1":
+                        execMerger.options.other_F_matrix = 'gfn2'
+                        print("This the other f matrix")
                     #elif combo[1] == "GFN_SCC":
                     #    execMerger.options.other_F_matrix = 'GFN'
                     else:
                         execMerger.options.other_F_matrix = ''
                     # execMerger.options.other_F_matrix = 'MP2_TZ'
                     if len(execMerger.options.other_F_matrix):
-                        if os.path.exists(os.getcwd()+"/"+combo[0]+"/Disps_"+execMerger.options.other_F_matrix+"/fc_int_nat.dat"):
+                        if os.path.exists(os.getcwd()+"/"+combo[0]+"/Disps_"+execMerger.options.other_F_matrix+"/fc_int_nat.dat") and coord_type_init == 'internal':
                             shutil.copyfile(os.getcwd()+"/"+combo[0]+"/Disps_"+execMerger.options.other_F_matrix+"/fc_int_nat.dat",os.getcwd()+"/inter_fc.dat")
+                        elif os.path.exists(os.getcwd()+"/"+combo[0]+"/Disps_"+execMerger.options.other_F_matrix+"/fc_cart.dat") and coord_type_init == 'cartesian':
+                            print("the path exists for other f cartesian_coords")
+                            shutil.copyfile(os.getcwd()+"/"+combo[0]+"/Disps_"+execMerger.options.other_F_matrix+"/fc_cart.dat",os.getcwd()+"/inter_fc_cart.dat")
+                            if os.path.exists(os.getcwd()+"/"+combo[0]+"/Disps_"+execMerger.options.other_F_matrix+"/fc_cart.grad"):
+                                shutil.copyfile(os.getcwd()+"/"+combo[0]+"/Disps_"+execMerger.options.other_F_matrix+"/fc_cart.grad",os.getcwd()+"/inter_fc_cart.grad")
+                            else:
+                                print("A gradient is necessary for this transformation.")
+                                raise RuntimeError
+
+                    #if len(execMerger.options.other_F_matrix):
+                    #    if os.path.exists(os.getcwd()+"/"+combo[0]+"/Disps_"+execMerger.options.other_F_matrix+"/fc_int_nat.dat"):
+                    #        print("The path exists for cma2!!")
+                    #        shutil.copyfile(os.getcwd()+"/"+combo[0]+"/Disps_"+execMerger.options.other_F_matrix+"/fc_int_nat.dat",os.getcwd()+"/inter_fc.dat")
                     if combo[1] == "CCSD_T_DZ":
                         # execMerger.options.cart_insert_init = 24
                         execMerger.options.cart_insert_init = 9
@@ -600,6 +621,8 @@ def execute():
                         Proj = None
                         if 'Linear' in job:
                             execMerger.options.coords = 'Custom'
+                    if vdw:
+                        execMerger.options.covalent_radii = True
                     execMerger.run(execMerger.options,Proj,energy_regex=cma1_energy_regexes[countt],success_regex=cma1_success_regexes[countt],cma1_coord=cma1_coord, sym_sort=sym_sort, xi_tol=xi_tol, coord_type_init=coord_type_init, od_inds=od_inds)
                     # Collect the data in dictionary d to add it to the database
                     # e.g. d[f"Ref {combo[0]}"] = execMerger.reference_freq
@@ -634,64 +657,47 @@ def execute():
                         z['Molecule'] = [f"{mol.name} ({mol.ID})"]
                     
                     if coord == "Nattys":
+                        #Initialize spot for molecule
                         d['Molecule'] = [f"{mol.name} ({mol.ID}) mode {i+1}" for i in freq_indices]
                         z['Molecule'] = [f"{mol.name} ({mol.ID})"]
                         m['Molecule'] = [f"{mol.name} ({mol.ID})"]
                         custom_freq = execMerger.Freq_CMA0.copy()
+                        
                         d[f'Natty ({combo[1]})'] = custom_freq
-                        # d[f'Natty ({combo[1]})'] = execMerger.Freq_custom
-                        z[f'Natty ({combo[1]})'] = np.sum(custom_freq)/2
-                        # z[f'Natty ({combo[1]})'] = np.sum(execMerger.Freq_custom)/2
-                        # z[f'Natty ({combo[1]})'] = np.sum(execMerger.Freq_custom)/(2*349.7550881133)
                         d[f'Ref - Nat ({combo[1]})'] = freq_diff(ref_freq, custom_freq)
                         d[f'ABS Ref - Nat ({combo[1]})'] = np.abs(freq_diff(ref_freq, custom_freq))
-                        # d[f'Ref - Nat ({combo[1]})'] = freq_diff(execMerger.reference_freq, execMerger.Freq_custom)
+                        
+                        z[f'Natty ({combo[1]})'] = np.sum(custom_freq)/2
                         z[f'Ref - Nat ({combo[1]})'] = np.sum(custom_freq)/2 - np.sum(ref_freq)/2
-                        # z[f'Ref - Nat ({combo[1]})'] = np.sum(execMerger.reference_freq)/2 - np.sum(execMerger.Freq_custom)/2
-                        # z[f'Ref - Nat ({combo[1]})'] = np.sum(execMerger.reference_freq)/(2*349.7550881133) - np.sum(execMerger.Freq_custom)/(2*349.7550881133)
                         m[f'Ref - Nat ({combo[1]})'] = np.max(np.abs(freq_diff(ref_freq, custom_freq)))
                         mol.freqs[f'Natty ({combo[1]})'] = custom_freq
-                        # mol.freqs[f'Natty ({combo[1]})'] = execMerger.Freq_custom
                     if coord == "Redundant":
+                        #Initialize spot for molecule
                         d['Molecule'] = [f"{mol.name} ({mol.ID}) mode {i+1}" for i in freq_indices]
                         z['Molecule'] = [f"{mol.name} ({mol.ID})"]
                         m['Molecule'] = [f"{mol.name} ({mol.ID})"]
                         if 'Linear' not in job:
-                            #red_freq = execMerger.Freq_redundant.copy()
                             red_freq = execMerger.Freq_CMA0.copy()
-
+                            
                             d[f'Red ({combo[1]})'] = red_freq
-                            # d[f'Red ({combo[1]})'] = execMerger.Freq_redundant
-                            z[f'Red ({combo[1]})'] = np.sum(red_freq)/2
-                            # z[f'Red ({combo[1]})'] = np.sum(execMerger.Freq_redundant)/2
-                            # z[f'Red ({combo[1]})'] = np.sum(execMerger.Freq_redundant)/(2*349.7550881133)
                             d[f'Ref - Red ({combo[1]})'] = freq_diff(ref_freq, red_freq)
                             d[f'ABS Ref - Red ({combo[1]})'] = np.abs(freq_diff(ref_freq, red_freq))
-                            # d[f'Ref - Red ({combo[1]})'] = freq_diff(execMerger.reference_freq, execMerger.Freq_redundant)
+                            
+                            z[f'Red ({combo[1]})'] = np.sum(red_freq)/2
                             z[f'Ref - Red ({combo[1]})'] = np.sum(ref_freq)/2 - np.sum(red_freq)/2
-                            # z[f'Ref - Red ({combo[1]})'] = np.sum(execMerger.reference_freq)/2 - np.sum(execMerger.Freq_redundant)/2
-                            # z[f'Ref - Red ({combo[1]})'] = np.sum(execMerger.reference_freq)/(2*349.7550881133) - np.sum(execMerger.Freq_redundant)/(2*349.7550881133)
                             m[f'Ref - Red ({combo[1]})'] = np.max(np.abs(freq_diff(ref_freq, red_freq)))
-                            # m[f'Ref - Red ({combo[1]})'] = np.max(np.abs(freq_diff(execMerger.reference_freq, execMerger.Freq_custom)))
                             mol.freqs[f'Red ({combo[1]})'] = red_freq
-                            # mol.freqs[f'Red ({combo[1]})'] = execMerger.Freq_redundant
                         else:
                             cust_freq = execMerger.Freq_CMA0.copy()
+                            
                             d[f'Red ({combo[1]})'] = cust_freq
-                            # d[f'Red ({combo[1]})'] = execMerger.Freq_custom
-                            # z[f'Red ({combo[1]})'] = np.sum(execMerger.Freq_custom)/(2*349.7550881133)
-                            z[f'Red ({combo[1]})'] = np.sum(cust_freq)/2
-                            # z[f'Red ({combo[1]})'] = np.sum(execMerger.Freq_custom)/2
                             d[f'Ref - Red ({combo[1]})'] = freq_diff(ref_freq, cust_freq)
                             d[f'ABS Ref - Red ({combo[1]})'] = np.abs(freq_diff(ref_freq, cust_freq))
-                            # d[f'Ref - Red ({combo[1]})'] = freq_diff(execMerger.reference_freq, execMerger.Freq_custom)
+                            
+                            z[f'Red ({combo[1]})'] = np.sum(cust_freq)/2
                             z[f'Ref - Red ({combo[1]})'] = np.sum(ref_freq)/2 - np.sum(cust_freq)/2
-                            # z[f'Ref - Red ({combo[1]})'] = np.sum(execMerger.reference_freq)/2 - np.sum(execMerger.Freq_custom)/2
-                            # z[f'Ref - Red ({combo[1]})'] = np.sum(execMerger.reference_freq)/(2*349.7550881133) - np.sum(execMerger.Freq_custom)/(2*349.7550881133)
                             m[f'Ref - Red ({combo[1]})'] = np.max(np.abs(freq_diff(ref_freq, cust_freq)))
-                            # m[f'Ref - Red ({combo[1]})'] = np.max(np.abs(freq_diff(execMerger.reference_freq, execMerger.Freq_custom)))
                             mol.freqs[f'Red ({combo[1]})'] = cust_freq
-                            # mol.freqs[f'Red ({combo[1]})'] = execMerger.Freq_custom
                     
                     #Collect data for CMA2
                     if off_diag > 0:
@@ -701,18 +707,13 @@ def execute():
                             d2['Molecule'] = [f"{mol.name} ({mol.ID}) mode {i+1}" for i in range(len(ref_freq))]
                             d2e['Molecule'] = [f"{mol.name} ({mol.ID})"]
                             d2m['Molecule'] = [f"{mol.name} ({mol.ID})"]
-                            # d2['Molecule'] = [f"{mol.name} ({mol.ID}) mode {i+1}" for i in range(len(execMerger.reference_freq))]
+                            
                             d2[f"Ref {combo[0]}"] = ref_freq
-                            # d2[f"Ref {combo[0]}"] = execMerger.reference_freq
                             d2[f'Natty ({combo[1]})'] = custom_freq
-                            # d2[f'Natty ({combo[1]})'] = execMerger.Freq_custom
-                            # cma2_freqs_natty = execMerger.Freq_cma2.copy()
                             if off_diag == 1:
                                 cma1_freqs_natty = execMerger.Freq_cma1.copy()
                                 mol.freqs[f'Natty CMA1 ({combo[1]})'] = cma1_freqs_natty
                                 d2[f'Natty CMA1 ({combo[1]})'] = cma1_freqs_natty
-                                # d2[f'Ref - Natty ({combo[1]})'] = freq_diff(ref_freq, custom_freq)
-                                # d2[f'Ref - Natty ({combo[1]})'] = freq_diff(execMerger.reference_freq, execMerger.Freq_custom)
                                 d2[f'Ref - Natty CMA1 ({combo[1]})'] = freq_diff(ref_freq, cma1_freqs_natty)
                                 d2[f'ABS Ref - Natty CMA1 ({combo[1]})'] = np.abs(freq_diff(ref_freq, cma1_freqs_natty))
                                 d2m[f'Ref - Natty CMA1 ({combo[1]})'] = np.max(np.abs(freq_diff(ref_freq, cma1_freqs_natty)))
@@ -721,48 +722,49 @@ def execute():
                                 for i in range(len(xi_tol)):
                                     mol.freqs[f'Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = cma2_freqs_natty[i]
                                     d2[f'Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = cma2_freqs_natty[i] 
-                                    # d2[f'Ref - Natty ({combo[1]})'] = freq_diff(ref_freq, custom_freq)
-                                    # d2[f'Ref - Natty ({combo[1]})'] = freq_diff(execMerger.reference_freq, execMerger.Freq_custom)
                                     d2[f'Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = freq_diff(ref_freq, cma2_freqs_natty[i])
                                     d2[f'ABS Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = np.abs(freq_diff(ref_freq, cma2_freqs_natty[i]))
+                                    print(execMerger.eta_num)
+                                    print(execMerger.eta_num[i])
                                     d2e[f'Natty CMA2 eta_num ({combo[1]}) xi ({xi_tol[i]})'] = execMerger.eta_num[i]
                                     d2e[f'Natty CMA2 eta_denom ({combo[1]}) xi ({xi_tol[i]})'] = execMerger.eta_denom[i]
                                     d2e[f'Natty CMA2 tot_off_diags ({combo[1]}) xi ({xi_tol[i]})'] = execMerger.total_off_diags[i]
                                     d2m[f'Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = np.max(np.abs(freq_diff(ref_freq, cma2_freqs_natty[i])))
-                            elif off_diag == 3:
-                                cma3_freqs_natty = execMerger.Freq_cma3.copy()
-                                NOD = len(custom_freq)
-                                #mol.freqs[f'Natty CMA3 ({combo[1]}) {NOD}-ODs'] = cma3_freqs_natty
-                                d2[f'Natty CMA3 ({combo[1]}))'] = cma3_freqs_natty 
-                                #d2[f'Ref - Natty CMA3 ({combo[1]}) NOD ({NOD})'] = freq_diff(ref_freq, cma3_freqs_natty)
-                                #d2[f'ABS Ref - Natty CMA3 ({combo[1]}) NOD ({NOD})'] = np.abs(freq_diff(ref_freq, cma3_freqs_natty))
-
-                                # d2[f'Ref - Natty CMA2 ({combo[1]})'] = freq_diff(execMerger.reference_freq, cma2_freqs_natty)
                         # raise RuntimeError
                         if coord == "Redundant":
                             d2['Molecule'] = [f"{mol.name} ({mol.ID}) mode {i+1}" for i in range(len(ref_freq))]
                             d2e['Molecule'] = [f"{mol.name} ({mol.ID}) mode {i+1}" for i in range(len(ref_freq))]
-                            # d2['Molecule'] = [f"{mol.name} ({mol.ID}) mode {i+1}" for i in range(len(execMerger.reference_freq))]
+                            d2m['Molecule'] = [f"{mol.name} ({mol.ID})"]
                             d2[f"Ref {combo[0]}"] = ref_freq
-                            # d2[f"Ref {combo[0]}"] = execMerger.reference_freq
+                            d2[f'Red ({combo[1]})'] = red_freq
                             if 'Linear' not in job:
                                 d2[f'Red ({combo[1]})'] = red_freq
-                                # d2[f'Red ({combo[1]})'] = execMerger.Freq_redundant
                                 d2[f'Ref - Red ({combo[1]})'] = freq_diff(ref_freq, red_freq)
                                 d2[f'ABS Ref - Red ({combo[1]})'] = np.abs(freq_diff(ref_freq, red_freq))
-                                # d2[f'Ref - Red ({combo[1]})'] = freq_diff(execMerger.reference_freq, execMerger.Freq_redundant)
+                                if off_diag == 2:
+                                    cma2_freqs_red = execMerger.Freq_cma2.copy() 
+                                    for i in range(len(xi_tol)):
+                                        mol.freqs[f'Red CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = cma2_freqs_red[i]
+                                        d2[f'Red CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = cma2_freqs_red[i] 
+                                        d2[f'Ref - Red CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = freq_diff(ref_freq, cma2_freqs_red[i])
+                                        d2[f'ABS Ref - Red CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = np.abs(freq_diff(ref_freq, cma2_freqs_red[i]))
+                                        print(execMerger.eta_num)
+                                        print(execMerger.eta_num[i])
+                                        d2e[f'Red CMA2 eta_num ({combo[1]}) xi ({xi_tol[i]})'] = execMerger.eta_num[i]
+                                        d2e[f'Red CMA2 eta_denom ({combo[1]}) xi ({xi_tol[i]})'] = execMerger.eta_denom[i]
+                                        d2e[f'Red CMA2 tot_off_diags ({combo[1]}) xi ({xi_tol[i]})'] = execMerger.total_off_diags[i]
+                                        d2m[f'Ref - Red CMA2 ({combo[1]}) xi ({xi_tol[i]})'] = np.max(np.abs(freq_diff(ref_freq, cma2_freqs_red[i])))
+                                        #d2[f'Redundant CMA2 ({combo[1]})'] = cma2_freqs_red 
+                                        #d2[f'Ref - Red CMA2 ({combo[1]})'] = freq_diff(ref_freq, cma2_freqs_red)
+                                        #d2[f'ABS Ref - Red CMA2 ({combo[1]})'] = np.abs(freq_diff(ref_freq, cma2_freqs_red))
                             else:
-                                # d2[f'Red ({combo[1]})'] = execMerger.Freq_custom
                                 d2[f'Red ({combo[1]})'] = cust_freq
                                 d2[f'Ref - Red ({combo[1]})'] = freq_diff(ref_freq, cust_freq)
                                 d2[f'ABS Ref - Red ({combo[1]})'] = np.abs(freq_diff(ref_freq, cust_freq))
-                                # d2[f'Ref - Red ({combo[1]})'] = freq_diff(execMerger.reference_freq, execMerger.Freq_custom)
-                            cma2_freqs_red = execMerger.Freq_cma2 
-                          
-                            d2[f'Redundant CMA2 ({combo[1]})'] = cma2_freqs_red 
-                            d2[f'Ref - Red CMA2 ({combo[1]})'] = freq_diff(ref_freq, cma2_freqs_red)
-                            d2[f'ABS Ref - Red CMA2 ({combo[1]})'] = np.abs(freq_diff(ref_freq, cma2_freqs_red))
-                            # d2[f'Ref - Red CMA2 ({combo[1]})'] = freq_diff(execMerger.reference_freq, cma2_freqs_red)
+                                if off_diag == 2:
+                                    print("We haven't implemented .csv capture for this yet")
+                                    break
+                            
 
 
                     del execMerger
@@ -877,6 +879,68 @@ if csv:
             print(np.mean(np.array(megaframez.loc[:,f'Ref - Red ({combo[1]})'])))
             print(f'stdev CMA0 ZPVE ({combo[1]}):')
             print(np.std(np.array(megaframez.loc[:,f'Ref - Red ({combo[1]})'])))
+            
+            if n > 0 and off_diag == 2:
+                Eta_tab = np.array([])
+                OD_tab = np.array([])
+                MAD_tab = np.array([])
+                RMSD_tab = np.array([])
+                e_max_tab = np.array([])
+                for i in range(len(xi_tol)):
+                    megaframe2 = pd.concat(frame2)
+                    megaframe2e = pd.concat(frame2e)
+                    megaframe2m = pd.concat(frame2m)
+                    CMA2dat = np.array(megaframe2.loc[:,f'Ref - Red CMA2 ({combo[1]}) xi ({xi_tol[i]})'])
+                    print(f"the CMA2dat {CMA2dat}")
+                    megaframe2.to_csv('CMA2_Convergent.csv', index=False, float_format='%.2f')
+                    megaframe2e.to_csv('CMA2_e_max.csv', index=False, float_format='%.2f')
+                    print(f'Xi: {xi_tol[i]}')
+                    print('Total modes in set:')
+                    sum_num = np.sum(np.array(megaframe2e.loc[:,f'Red CMA2 eta_num ({combo[1]}) xi ({xi_tol[i]})']))
+                    sum_denom = np.sum(np.array(megaframe2e.loc[:,f'Red CMA2 eta_denom ({combo[1]}) xi ({xi_tol[i]})']))
+                    print(sum_denom)
+                    print(f'Eta ({combo[1]}):')
+                    eta = (sum_num/sum_denom)*100
+                    print(eta)
+                    Eta_tab = np.append(Eta_tab,eta)
+                    print(f'% Off diags ({combo[1]}) xi ({xi_tol[i]})')
+                    sum_off_diags = np.sum(np.array(megaframe2e.loc[:,f'Red CMA2 tot_off_diags ({combo[1]}) xi ({xi_tol[i]})']))
+                    od = (sum_num/sum_off_diags)*100
+                    print(od)
+                    OD_tab = np.append(OD_tab,od)
+
+                    print(f'MAD CMA2 ({combo[1]}):')
+                    mad = np.mean(np.abs(CMA2dat))
+                    print(mad)
+                    MAD_tab = np.append(MAD_tab,mad)
+                    print(f'RMSD CMA2 ({combo[1]}):')
+                    print(np.sqrt(np.sum(CMA2dat**2)/len(CMA2dat)))
+                    RMSD_tab = np.append(RMSD_tab,np.sqrt(np.sum(CMA2dat**2)/len(CMA2dat)))
+                    print(f'Mean e_max CMA2 ({combo[1]}):')
+                    print(np.mean(np.array(megaframe2m.loc[:,f'Ref - Red CMA2 ({combo[1]}) xi ({xi_tol[i]})'])))
+                    e_max_tab = np.append(e_max_tab,np.mean(np.array(megaframe2m.loc[:,f'Ref - Red CMA2 ({combo[1]}) xi ({xi_tol[i]})'])))
+                    # print(f'mean CMA2 ({combo[1]}):')
+                    # print(np.mean(CMA2dat))
+                    # Need the lower case max value printout here
+                    print(f'stdev CMA2 ({combo[1]}):')
+                    print(np.std(CMA2dat))
+                    print(f'MAX CMA2 ({combo[1]}):')
+                    print(np.max(np.abs(CMA2dat)))
+                print("\n")
+                print("Figure data:")
+                print("\n")
+                print("xi values:")
+                print(xi_tol)
+                print("eta values:")
+                print(Eta_tab.tolist())
+                print("% off-diagonals:")
+                print(OD_tab.tolist())
+                print("MAD values:")
+                print(MAD_tab.tolist())
+                print("RMSD values:")
+                print(RMSD_tab.tolist())
+                print("e_max values:")
+                print(e_max_tab.tolist())
 
         if coord_type[0] == "Nattys":
 
@@ -887,6 +951,8 @@ if csv:
             print(np.mean(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})'])))
             print(f'mean e_max CMA0 ({combo[1]}):')
             print(np.mean(np.array(megaframem.loc[:,f'Ref - Nat ({combo[1]})'])))
+            print("cma0 data we gonna take stdev of")
+            print(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})']))
             print(f'stdev CMA0 ({combo[1]}):')
             print(np.std(np.array(megaframe.loc[:,f'Ref - Nat ({combo[1]})'])))
             print(f'MAX CMA0 ({combo[1]}):')
@@ -896,11 +962,14 @@ if csv:
             print(np.mean(np.abs(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})']))))
             print(f'mean CMA0 ZPVE ({combo[1]}):')
             print(np.mean(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})'])))
+            print("cma0 ZPVE data we gonna take stdev of")
+            print(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})']))
             print(f'stdev CMA0 ZPVE ({combo[1]}):')
             print(np.std(np.array(megaframez.loc[:,f'Ref - Nat ({combo[1]})'])))
-            if off_diag == 3:
-                megaframe2 = pd.concat(frame2)
-                megaframe2.to_csv('CMA3_Convergent.csv', index=False, float_format='%.2f')
+            
+            #if off_diag == 3:
+            #    megaframe2 = pd.concat(frame2)
+            #    megaframe2.to_csv('CMA3_Convergent.csv', index=False, float_format='%.2f')
             
             if n > 0 and off_diag == 2:
                 Eta_tab = np.array([])
@@ -913,6 +982,7 @@ if csv:
                     megaframe2e = pd.concat(frame2e)
                     megaframe2m = pd.concat(frame2m)
                     CMA2dat = np.array(megaframe2.loc[:,f'Ref - Natty CMA2 ({combo[1]}) xi ({xi_tol[i]})'])
+                    print(f"the CMA2dat {CMA2dat}")
                     megaframe2.to_csv('CMA2_Convergent.csv', index=False, float_format='%.2f')
                     megaframe2e.to_csv('CMA2_e_max.csv', index=False, float_format='%.2f')
                     print(f'Xi: {xi_tol[i]}')
@@ -924,7 +994,7 @@ if csv:
                     eta = (sum_num/sum_denom)*100
                     print(eta)
                     Eta_tab = np.append(Eta_tab,eta)
-                    print('% Off diags ({combo[1]}) xi ({xi_tol[i]})')
+                    print(f'% Off diags ({combo[1]}) xi ({xi_tol[i]})')
                     sum_off_diags = np.sum(np.array(megaframe2e.loc[:,f'Natty CMA2 tot_off_diags ({combo[1]}) xi ({xi_tol[i]})']))
                     od = (sum_num/sum_off_diags)*100
                     print(od)

@@ -8,16 +8,16 @@ import shutil
 import subprocess
 
 #paths = ['/1*','/2*']
-paths = ['/1*','/2*']
-#levelA = "CCSD_T_TZ"
-levelA = "M062X_TZVP"
-#levelA = "B3LYP_6-31G_2df,p_"
+paths = ['/12*']
+#path from your benchmarker to the shared directory of amino acids
+levelA = "B3LYP_6-311G**"
 
 #levelB = "gfnff"
 levelB = "gfn1"
 
-make_all = False #if testing code
-job_list = ["1.59"]
+exclude_list = []
+make_all = True #if testing code
+#job_list = ["1.59"]
 
 hq = os.getcwd()
 jobb_list = []
@@ -73,12 +73,19 @@ if make_all:
         ind = np.argsort(np.array([int(re.search(r"/\d_.*/(\d*)_.*", name).group(1)) for name in tmp_list]))
         tmp_list = [tmp_list[i] for i in ind]
         jobb_list += tmp_list
+    if len(exclude_list):
+        excludee_list = []
+        for job in exclude_list:
+            id1, id2 = job.split(".")
+            excludee_list += glob.glob(hq + f"/{id1}_*" + f"/{id2}_*/")
+        for path in excludee_list:
+            jobb_list.remove(path)
     print("printing jobb_list")
     print(jobb_list)
     #copy_zmat(jobb_list)
     #make_levelA_dir(jobb_list)
-    #make_Disps_dir(jobb_list)
-    #insert_templates(jobb_list)
+    make_Disps_dir(jobb_list)
+    insert_templates(jobb_list)
     #delete_Disps_dir(jobb_list)
 else:
     for job in job_list:

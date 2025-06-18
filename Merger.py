@@ -186,6 +186,8 @@ class Merger(object):
             print(self.Proj)
         
         s_vec.run(zmat_obj.cartesians_init, True, proj=self.Proj, second_order=self.options.second_order)
+        if self.options.second_order:
+            s_vec_init = s_vec
         
         # Trial A-tensor projection to generate cartesian linear combos
         # B_buff = s_vec.B.copy()
@@ -1238,6 +1240,13 @@ class Merger(object):
                 
                 # self.RMSD = np.append(self.RMSD,cma1_rmsd)
                 self.Freq_cma1 = cma1_Freq
+                print(f"CMA 0 Errors CMA 1 Errors")
+                for f, freq in enumerate(full_GF.freq):
+                    print(f"{f} {diag_GF.freq[f] - full_GF.freq[f]:.3f} {self.Freq_cma1[f] - full_GF.freq[f]:.3f}")
+                #print(f"The CMA-0 Error")
+                #print(diag_GF.freq - full_GF.freq)
+                #print(f"The CMA-1 Error")
+                #print(self.Freq_cma1 - full_GF.freq)
             #elif self.options.off_diag == 3:
             #    def n_largest(n, FC):
             #        indexes = []
@@ -1306,11 +1315,36 @@ class Merger(object):
                 self.total_off_diags = np.array([])
                 
                 for xi_tol_i in xi_tol:
-                    if len(self.options.other_F_matrix) and os.path.exists(os.getcwd() + "/inter_fc.dat"):
-                        f_read_obj_inter = FcRead("inter_fc.dat")
-                        f_read_obj_inter.run()
-                        F_inter = f_read_obj_inter.fc_mat
+                    print(f"The current xi_tol {xi_tol_i}")
+                    print(f"Does the path exist?")
+                    print(f"cwd {os.getcwd()}")
+                    print(os.getcwd() + "/inter_fc.dat")
+                    print(os.path.exists(os.getcwd() + "/inter_fc.dat"))
+                    #if len(self.options.other_F_matrix) and os.path.exists(os.getcwd() + "/inter_fc.dat"):
+                    if len(self.options.other_F_matrix):
+                        print("Insider merger, and inter_fc.dat exists")
+                        if os.path.exists(os.getcwd() + "/inter_fc.dat") and self.coord_type_init == "internal":
+                            f_read_obj_inter = FcRead("inter_fc.dat")
+                            f_read_obj_inter.run()
+                            F_inter = f_read_obj_inter.fc_mat
+                        elif os.path.exists(os.getcwd() + "/inter_fc_cart.dat") and self.coord_type_init == "cartesian":
+                            f_read_obj_inter = FcRead("inter_fc_cart.dat")
+                            g_read_obj_inter = GrRead("inter_fc_cart.grad")
+                            g_read_obj_inter.run(zmat_obj2.cartesians_init)
+                            f_read_obj_inter.run()
+                            #f_conv = FcConv(f_read_obj_inter.fc_mat, s_vec_init, zmat_obj2, "internal", False, TED_obj, "", True)
+                            f_conv = FcConv(f_read_obj_inter.fc_mat, s_vec_init, zmat_obj2, "internal", False, TED_obj, self.options)
+                            f_conv.run(grad=g_read_obj_inter.cart_grad)
+                            F_inter = f_conv.F
+                            F_inter = np.dot(TED_obj.proj.T, np.dot(F_inter, TED_obj.proj))
+
                         F_inter = np.dot(np.dot(inv(eig_inv).T, F_inter), inv(eig_inv))
+
+
+                        #f_read_obj_inter = FcRead("inter_fc.dat")
+                        #f_read_obj_inter.run()
+                        #F_inter = f_read_obj_inter.fc_mat
+                        #F_inter = np.dot(np.dot(inv(eig_inv).T, F_inter), inv(eig_inv))
                         print("F_inter:")
                         print(F_inter)
                         print("F_A:")
@@ -1332,6 +1366,8 @@ class Merger(object):
                         print("CMA2 off-diagonal elements:")
                         print(od_inds)
                         self.cma_off_diags = len(od_inds)
+                        print(f"The number of off_diags {self.cma_off_diags}")
+                        print(self.cma_off_diags)
                         # self.off_diags = np.append(self.off_diags,len(od_inds))
                         self.total_off_diags = np.append(self.total_off_diags,self.total_off_diags_buff)
                         # self.perc_off_diags = (self.cma_off_diags / self.total_off_diags) * 100
@@ -1378,6 +1414,9 @@ class Merger(object):
                     # self.RMSD = np.append(self.RMSD,cma2_rmsd)
                     self.Freq_cma2 = np.append(self.Freq_cma2,cma2_Freq,axis=0)
                 self.Freq_cma2 = np.reshape(self.Freq_cma2,(len(xi_tol),-1))
+                print("CMA2 Error")
+                for f, freq in enumerate(full_GF.freq):
+                    print(f"{f} {diag_GF.freq[f] - full_GF.freq[f]:.3f} {cma2_Freq[f] - full_GF.freq[f]:.3f}")
             else:
                 print("Only CMA-1 and CMA-2 off_diag algorithms are implemented at the moment.")
                 print("Please enter either 1 or 2 for the off_diag option.")
